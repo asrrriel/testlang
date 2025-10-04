@@ -1,0 +1,43 @@
+program -> any number of programisms
+
+programism -> declaration | declassignment | func-declaration
+
+statement -> (expression |
+             "{" any number of statements "}" |
+             if-stmt |
+             goto-stmt |
+             declaration |
+             declassignment |
+             "return" expression |
+             ";") | label
+
+expression -> litaral |
+              IDENTIFIER |
+              "(" expression ")" |
+              unary |
+              binary |
+              expression "(" arg-list-call ")" |
+              expression "?" expression ":" expression
+
+
+if-stmt -> "if" expression
+label   -> IDENTIFIER ":"
+goto-stmt -> "goto" IDENTIFIER 
+
+declaration      -> type-expr IDENTIFIER
+declassignment   -> type-expr IDENTIFIER "=" expression
+func-declaration -> type-expr IDENTIFIER "(" arg-list-def ")" (statement | ";")
+
+type-expr -> qualifier type ptr-denotation?
+arg-list-def   -> declaration | (arg-list "," declaration) | (arg-list "," "...")
+arg-list-call  -> expression  | (arg-list  "," expression)
+
+ptr-denotation -> "*" | ptr-denotation "*" 
+qualifier -> qualifier? ("const" | "long" | "unsigned" | "extern")?
+type -> "char" | "short" | "int" | "void"
+literal -> INTLIT | STRLIT | CHRLIT
+unary -> unoperator expression
+binary -> expression binoperator expression
+
+unoperator  -> "-" | "!"
+binoperator -> "+" | "-" | "*" | "/" | "%" | "&" | "|" | "^" | "&&" | "||" | "=" | "==" | "!=" | ">" | "<" | ">=" | "<="
