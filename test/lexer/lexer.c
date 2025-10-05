@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <util.h>
+
 bool append(token_t** t,size_t* filled, size_t* size,token_t to_append){
     if((*filled)++ >= *size){
         if (!(*t = realloc(*t, (*size += *size / 2) * sizeof(token_t)))){
@@ -136,7 +138,7 @@ bool process_normalo_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to
     return true;
 }
 
-bool process_commento_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_commento_mode(uint8_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
     switch(**pointer){
         case '\n':
             (*row)++;
@@ -148,7 +150,7 @@ bool process_commento_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* t
     return true;
 }
 
-bool process_multilino_commento_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_multilino_commento_mode(uint8_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
     switch(**pointer){
         case '\n':
             (*row)++;

@@ -1,6 +1,6 @@
 CC := clang
 
-CFLAGS := -g -I.
+CFLAGS := -g -I. -Wall -Wextra -pedantic -Werror
 LDFLAGS := 
 
 TARGET := x86_64-pc-linux-gnu
