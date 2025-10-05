@@ -8,7 +8,6 @@ const char c = 0x0f;
 extern int printf(char* fmt,...);
 
 /*cool possibility the C devs went out of their way to not allow :thinkie: */
-
 int add(int a, int b) return a + b;
 int sub(int a, int b) return a - b;
 
