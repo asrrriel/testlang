@@ -1,6 +1,6 @@
 CC := clang
 
-CFLAGS := -g
+CFLAGS := -g -I.
 LDFLAGS := 
 
 TARGET := x86_64-pc-linux-gnu
@@ -18,6 +18,7 @@ dirs:
 	mkdir -p bin
 
 obj/%.o: ./%.c
+	mkdir -p obj/$(shell dirname $<)
 	$(CC) -target $(TARGET) $(CFLAGS) -c $< -o $@
 
 bear:
