@@ -1,0 +1,13 @@
+{
+    "configurations": [
+    {
+        "type": "gdb",
+        "request": "launch",
+        "name": "Launch Program",
+        "target": "./test/bin/test",
+        "arguments": "examples/test.tl",
+        "cwd": "${workspaceRoot}",
+        "valuesFormatting": "parseText"
+    }
+    ]
+}
