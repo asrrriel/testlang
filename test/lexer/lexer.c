@@ -97,7 +97,6 @@ bool process_normalo_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to
             if(**pointer == '/' && (*pointer)[1] == '/'){
                 (*pointer)++; //just quietly skip that character
                 (*col)++;
-                col++;
                 *mode = COMMENTO_MODE;
                 break;
             }
