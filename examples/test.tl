@@ -2,7 +2,7 @@
 /* char redacted = 'a';*/
 char a;
 unsigned char b = 255;
-const char c = 0x0f;
+const char c = '@';
 
 //we need printf
 extern int printf(char* fmt,...);
@@ -11,14 +11,14 @@ extern int printf(char* fmt,...);
 int add(int a, int b) return a + b;
 int sub(int a, int b) return a - b;
 
-char* urmomsname = "Susanne";
+char* ur_moms_name = "Susanne";
 
 int main(int argc, char** argv) {
     char* d = "the condition that distinguishes organisms from inorganic objects and dead organisms, being manifested by growth through metabolism, reproduction, and the power of adaptation to environment through changes originating internally."
     long unsigned int e = 0xFFFFFFFFFFFFFFFF ^ 0x0000000000000002;
     long int f = -4;
 
-    printf("Anyád neve(your mother's name): %s\n",urmomsname);
+    printf("Anyád neve(your mother's name): %s\n",ur_moms_name);
     printf("Who the fuck needs rand when we can have %u\n",a);
     printf("The meaning of life is: %s\n",d);
 
