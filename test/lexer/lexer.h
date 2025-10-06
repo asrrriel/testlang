@@ -53,4 +53,6 @@ typedef struct {
 
 token_t* lex(const char* null_terminated_string);
 
+void free_token_array(token_t* array);
+
 #endif // __LEXER_H__

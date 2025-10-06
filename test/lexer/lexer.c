@@ -274,3 +274,23 @@ token_t* lex(const char* null_terminated_string){
         free(root);
         return NULL;
 }
+
+void free_token_array(token_t* array){
+    token_t* cur = array;
+   
+
+    do {
+        switch (cur->type) {
+            case TOKEN_TYPE_TERMINATOR:
+                break; // no advance
+            case TOKEN_TYPE_STRING: //fallthru
+            case TOKEN_TYPE_STRLIT: //fallthru
+            case TOKEN_TYPE_CHRLIT: //fallthru
+                free((void*)cur->value);
+            default: // fallthru
+                cur++;
+                break;
+        }
+    } while(cur->type != TOKEN_TYPE_TERMINATOR); 
+    free(array);
+}
