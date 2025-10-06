@@ -1,7 +1,7 @@
 CC := clang
 
-CFLAGS := -g -I. -Wall -Wextra -pedantic -Werror
-LDFLAGS := 
+CFLAGS := -g -O1 -I. -Wall -Wextra -pedantic -Werror -fsanitize=address,undefined,leak
+LDFLAGS := -fsanitize=address,undefined,leak
 
 TARGET := x86_64-pc-linux-gnu
 
