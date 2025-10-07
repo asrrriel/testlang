@@ -1,51 +1,57 @@
 #ifndef __LEXER_H__
 #define __LEXER_H__
 
-#define TOKEN_TYPE_TERMINATOR   0
-#define TOKEN_TYPE_NEWLINE      1
-#define TOKEN_TYPE_STRING       2
-#define TOKEN_TYPE_STRLIT       3
-#define TOKEN_TYPE_CHRLIT       4
-#define TOKEN_TYPE_BANG         5
-#define TOKEN_TYPE_HASH         6
-#define TOKEN_TYPE_DOLLAR       7
-#define TOKEN_TYPE_MODULO       8
-#define TOKEN_TYPE_AND          9
-#define TOKEN_TYPE_LPAREN       10
-#define TOKEN_TYPE_RPAREN       11
-#define TOKEN_TYPE_STAR         12
-#define TOKEN_TYPE_PLUS         13
-#define TOKEN_TYPE_COMMA        14
-#define TOKEN_TYPE_MINUS        15
-#define TOKEN_TYPE_DOT          16
-#define TOKEN_TYPE_SLASH        17
-#define TOKEN_TYPE_COLON        18
-#define TOKEN_TYPE_SEMI         19
-#define TOKEN_TYPE_LANGLE       20
-#define TOKEN_TYPE_EQUAL        21
-#define TOKEN_TYPE_RANGLE       22
-#define TOKEN_TYPE_QUESTION     23
-#define TOKEN_TYPE_AT           24
-#define TOKEN_TYPE_LSQUARE      25
-#define TOKEN_TYPE_BSLASH       26
-#define TOKEN_TYPE_RSQUARE      27
-#define TOKEN_TYPE_CARET        28
-#define TOKEN_TYPE_BACKTICK     30
-#define TOKEN_TYPE_LCURLY       31
-#define TOKEN_TYPE_WALL         32
-#define TOKEN_TYPE_RCURLY       33
-#define TOKEN_TYPE_TILDE        34
+typedef enum {
+    TOKEN_TYPE_NEWLINE,
+    TOKEN_TYPE_TERMINATOR, 
+    TOKEN_TYPE_STRLIT,
+    TOKEN_TYPE_STRING,
+    TOKEN_TYPE_BANG,
+    TOKEN_TYPE_CHRLIT,
+    TOKEN_TYPE_DOLLAR,
+    TOKEN_TYPE_HASH,
+    TOKEN_TYPE_AND,
+    TOKEN_TYPE_MODULO,
+    TOKEN_TYPE_RPAREN,
+    TOKEN_TYPE_LPAREN,
+    TOKEN_TYPE_PLUS,
+    TOKEN_TYPE_STAR,
+    TOKEN_TYPE_MINUS,
+    TOKEN_TYPE_COMMA,
+    TOKEN_TYPE_SLASH,
+    TOKEN_TYPE_DOT,
+    TOKEN_TYPE_SEMI,
+    TOKEN_TYPE_COLON,
+    TOKEN_TYPE_EQUAL,
+    TOKEN_TYPE_LANGLE,
+    TOKEN_TYPE_QUESTION,
+    TOKEN_TYPE_RANGLE,
+    TOKEN_TYPE_LSQUARE,
+    TOKEN_TYPE_AT,
+    TOKEN_TYPE_RSQUARE,
+    TOKEN_TYPE_BSLASH,
+    TOKEN_TYPE_BACKTICK,
+    TOKEN_TYPE_CARET,
+    TOKEN_TYPE_WALL,
+    TOKEN_TYPE_LCURLY,
+    TOKEN_TYPE_TILDE,
+    TOKEN_TYPE_RCURLY
+} token_type_t;
 
-#define NORMALO_MODE 0
-#define COMMENTO_MODE 1
-#define MULTILINO_COMMENTO_MODE 2
-#define STRINGO_LITERALO_MODE 3
-#define CHARACTERO_LITERALO_MODE 4
+
+typedef enum {
+    NORMALO_MODE,
+    COMMENTO_MODE,
+    MULTILINO_COMMENTO_MODE,
+    STRINGO_LITERALO_MODE,
+    CHARACTERO_LITERALO_MODE,
+} lexer_mode_t;
+
 
 #include <stdint.h>
 
 typedef struct {
-    uint32_t type; //size doesnt matter unless you pack the struct
+    token_type_t type;
     uintptr_t value;
     uint32_t col;
     uint32_t row;

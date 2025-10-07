@@ -68,9 +68,9 @@ static const char escapes[127] = {
     ['"']  = '"' 
 };
 
-typedef bool (*modefn_t)(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum);
+typedef bool (*modefn_t)(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum);
 
-bool process_normalo_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_normalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
     switch(**pointer){
         case ' ':
             *last_nalnum = *pointer + 1; // this is not alphanumeric
@@ -155,7 +155,7 @@ bool process_normalo_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to
     return true;
 }
 
-bool process_commento_mode(uint8_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_commento_mode(lexer_mode_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
     switch(**pointer){
         case '\n':
             (*row)++;
@@ -167,7 +167,7 @@ bool process_commento_mode(uint8_t* mode, UNUSED uint32_t* to_append_type, UNUSE
     return true;
 }
 
-bool process_multilino_commento_mode(uint8_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_multilino_commento_mode(lexer_mode_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
     switch(**pointer){
         case '\n':
             (*row)++;
@@ -190,7 +190,7 @@ char* buf = NULL;
 size_t buf_filled;
 size_t buf_size;
 
-bool process_stringo_literalo_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_stringo_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
     if(buf == NULL){
         buf_size = 2, buf_filled = 0;
         buf = malloc(buf_size);
@@ -234,7 +234,7 @@ bool process_stringo_literalo_mode(uint8_t* mode, uint32_t* to_append_type, uint
     return true;
 }
 
-bool process_charactero_literalo_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_charactero_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
     if(buf == NULL){
         buf_size = 2, buf_filled = 0;
         buf = malloc(buf_size);
@@ -301,7 +301,7 @@ token_t* lex(const char* null_terminated_string){
     uint32_t  to_append_type = 0;
     uintptr_t to_append_value = 0;
 
-    uint8_t mode = NORMALO_MODE;
+    lexer_mode_t mode = NORMALO_MODE;
 
     while(pointer < null_terminated_string + len) {
         if(!mode_functions[mode](&mode, &to_append_type, &to_append_value, &row, &col, &pointer, &last_nalnum))
@@ -339,7 +339,6 @@ token_t* lex(const char* null_terminated_string){
 
 void free_token_array(token_t* array){
     token_t* cur = array;
-   
 
     do {
         switch (cur->type) {
