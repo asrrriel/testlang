@@ -9,9 +9,19 @@
 
 #include <util.h>
 
-bool append(token_t** t,size_t* filled, size_t* size,token_t to_append){
+bool append_token(token_t** t,size_t* filled, size_t* size,token_t to_append){
     if((*filled)++ >= *size){
         if (!(*t = realloc(*t, (*size += *size / 2) * sizeof(token_t)))){
+            return false;
+        }
+    }
+    (*t)[*filled - 1] = to_append;
+    return true;
+}
+
+bool append_char(char** t,size_t* filled, size_t* size,char to_append){
+    if((*filled)++ >= *size){
+        if (!(*t = realloc(*t, (*size += *size / 2) * sizeof(char)))){
             return false;
         }
     }
@@ -49,6 +59,13 @@ static const uint8_t symbols[127] = {
     ['|']  = TOKEN_TYPE_WALL,
     ['}']  = TOKEN_TYPE_RCURLY,
     ['~']  = TOKEN_TYPE_TILDE
+};
+
+static const char escapes[127] = {
+    ['n']  = '\n',
+    ['\\']  = '\\',
+    ['\'']  = '\'',
+    ['"']  = '"' 
 };
 
 typedef bool (*modefn_t)(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum);
@@ -168,51 +185,96 @@ bool process_multilino_commento_mode(uint8_t* mode, UNUSED uint32_t* to_append_t
     return true;
 }
 
+//HACK: global state for string and character literals, may break stuff if we want to lex multiple files at once
+char* buf = NULL;
+size_t buf_filled;
+size_t buf_size;
+
 bool process_stringo_literalo_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+    if(buf == NULL){
+        buf_size = 2, buf_filled = 0;
+        buf = malloc(buf_size);
+    }
+
     switch(**pointer){
+        case '"':
+            *to_append_type = TOKEN_TYPE_CHRLIT;
+            *mode = NORMALO_MODE;
+            if (*pointer > *last_nalnum){
+                if(!append_char(&buf, &buf_filled, &buf_size, 0)){
+                    return false;
+                }
+                *to_append_value = (uintptr_t)buf;
+            } else {
+                *to_append_value = 0;
+               free(buf);
+            }
+            buf = NULL;
+            break;
         case '\n':
             (*row)++;
             *col = 0;
             break;
-        case '"':
-            if (*pointer > *last_nalnum){
-                size_t alnum_size = *pointer - *last_nalnum;
-                char*  buf = malloc(alnum_size + 1);
-
-                memcpy(buf,*last_nalnum,alnum_size);
-                buf[alnum_size] = '\0';
-
-                *to_append_type = TOKEN_TYPE_STRLIT;
-                *to_append_value = (uintptr_t)buf;
-
-                *mode = NORMALO_MODE;
+        case '\\': // fallthru
+            const char e = escapes[(uint8_t)(*pointer)[1]];
+            if(e){
+                (*pointer)++;
+                (*col)++;
+                if(!append_char(&buf, &buf_filled, &buf_size, e)){
+                    return false;
+                }
+                break;
+            }
+        default: //fallthru
+            if(!append_char(&buf, &buf_filled, &buf_size, **pointer)){
+                return false;
             }
             break;
-    }
+        }
     return true;
 }
 
 bool process_charactero_literalo_mode(uint8_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+    if(buf == NULL){
+        buf_size = 2, buf_filled = 0;
+        buf = malloc(buf_size);
+    }
+
     switch(**pointer){
+        case '\'':
+            *to_append_type = TOKEN_TYPE_CHRLIT;
+            *mode = NORMALO_MODE;
+            if (*pointer > *last_nalnum){
+                if(!append_char(&buf, &buf_filled, &buf_size, 0)){
+                    return false;
+                }
+                *to_append_value = (uintptr_t)buf;
+            } else {
+                *to_append_value = 0;
+               free(buf);
+            }
+            buf = NULL;
+            break;
         case '\n':
             (*row)++;
             *col = 0;
             break;
-        case '\'':
-            if (*pointer > *last_nalnum){
-                size_t alnum_size = *pointer - *last_nalnum;
-                char*  buf = malloc(alnum_size + 1);
-
-                memcpy(buf,*last_nalnum,alnum_size);
-                buf[alnum_size] = '\0';
-
-                *to_append_type = TOKEN_TYPE_CHRLIT;
-                *to_append_value = (uintptr_t)buf;
-
-                *mode = NORMALO_MODE;
+        case '\\': // fallthru
+            const char e = escapes[(uint8_t)(*pointer)[1]];
+            if(e){
+                (*pointer)++;
+                (*col)++;
+                if(!append_char(&buf, &buf_filled, &buf_size, e)){
+                    return false;
+                }
+                break;
+            }
+        default: //fallthru
+            if(!append_char(&buf, &buf_filled, &buf_size, **pointer)){
+                return false;
             }
             break;
-    }
+        }
     return true;
 }
 
@@ -246,7 +308,7 @@ token_t* lex(const char* null_terminated_string){
             goto error;
 
         if (to_append_type != 0) {
-            if (!append(&root,&num_tokens,&size,(token_t){
+            if (!append_token(&root,&num_tokens,&size,(token_t){
                 .type = to_append_type,
                 .col =  col,
                 .row = row,
@@ -261,7 +323,7 @@ token_t* lex(const char* null_terminated_string){
         pointer++;
     }
 
-    if (!append(&root,&num_tokens,&size,(token_t){
+    if (!append_token(&root,&num_tokens,&size,(token_t){
         .type = TOKEN_TYPE_TERMINATOR,
         .col =  col,
         .row = row,
