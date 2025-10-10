@@ -1,17 +1,16 @@
 program -> any number of programisms
 
-programism -> declaration | declassignment | func-declaration
+programism -> declaration | func-declaration
 
 statement -> (expression |
              "{" any number of statements "}" |
              if-stmt |
              goto-stmt |
              declaration |
-             declassignment |
              "return" expression |
              ";") | label
 
-expression -> litaral |
+expression -> literal |
               IDENTIFIER |
               "(" expression ")" |
               unary |
@@ -24,8 +23,7 @@ if-stmt -> "if" expression
 label   -> IDENTIFIER ":"
 goto-stmt -> "goto" IDENTIFIER 
 
-declaration      -> type-expr IDENTIFIER
-declassignment   -> type-expr IDENTIFIER "=" expression
+declaration      -> type-expr IDENTIFIER ("=" expression)?
 func-declaration -> type-expr IDENTIFIER "(" arg-list-def ")" (statement | ";")
 
 type-expr -> qualifier type ptr-denotation?
