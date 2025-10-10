@@ -5,7 +5,7 @@
         "request": "launch",
         "name": "Launch Program",
         "target": "./test/bin/test",
-        "arguments": "examples/test.tl",
+        "arguments": "test/lexer/lexer.c",
         "cwd": "${workspaceRoot}",
         "valuesFormatting": "parseText"
     }
