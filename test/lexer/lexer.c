@@ -311,108 +311,113 @@ void free_token_array(token_t* array){
     free(array);
 }
 
-void print_token(token_t token){
-    switch (token.type) {
+void print_token(token_t* token){
+    if(token == NULL){
+        printf("Null token or failed expect\n");
+        return;
+    }
+
+    switch (token->type) {
         case TOKEN_TYPE_TERMINATOR:
             break;
         case TOKEN_TYPE_NEWLINE:
-            printf("Newline at %u:%u\n",token.row,token.col);
+            printf("Newline at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_STRING:
-            printf("String \"%s\" at %u:%u\n",(char*)token.value,token.row,token.col);
+            printf("String \"%s\" at %u:%u\n",(char*)token->value,token->row,token->col);
             break;
         case TOKEN_TYPE_STRLIT:
-            printf("String literal \"%s\" at %u:%u\n",(char*)token.value,token.row,token.col);
+            printf("String literal \"%s\" at %u:%u\n",(char*)token->value,token->row,token->col);
             break;
         case TOKEN_TYPE_CHRLIT:
-            printf("Character literal \"%s\" at %u:%u\n",(char*)token.value,token.row,token.col);
+            printf("Character literal \"%s\" at %u:%u\n",(char*)token->value,token->row,token->col);
             break;
         case TOKEN_TYPE_BANG:
-            printf("Exclamation point at %u:%u\n",token.row,token.col);
+            printf("Exclamation point at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_HASH:
-            printf("Hashtag at %u:%u\n",token.row,token.col);
+            printf("Hashtag at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_DOLLAR:
-            printf("Dollar sign at %u:%u\n",token.row,token.col);
+            printf("Dollar sign at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_MODULO:
-            printf("Percent sign at %u:%u\n",token.row,token.col);
+            printf("Percent sign at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_AND:
-            printf("Ampersand at %u:%u\n",token.row,token.col);
+            printf("Ampersand at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_LPAREN:
-            printf("Left paren at %u:%u\n",token.row,token.col);
+            printf("Left paren at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_RPAREN:
-            printf("Right paren at %u:%u\n",token.row,token.col);
+            printf("Right paren at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_STAR:
-            printf("Asterisk at %u:%u\n",token.row,token.col);
+            printf("Asterisk at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_PLUS:
-            printf("Plus sing at %u:%u\n",token.row,token.col);
+            printf("Plus sing at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_COMMA:
-            printf("Comma at %u:%u\n",token.row,token.col);
+            printf("Comma at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_MINUS:
-            printf("Minus sign at %u:%u\n",token.row,token.col);
+            printf("Minus sign at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_DOT:
-            printf("Dot at %u:%u\n",token.row,token.col);
+            printf("Dot at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_SLASH:
-            printf("Slash at %u:%u\n",token.row,token.col);
+            printf("Slash at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_COLON:
-            printf("Colon at %u:%u\n",token.row,token.col);
+            printf("Colon at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_SEMI:
-            printf("Semicolon at %u:%u\n",token.row,token.col);
+            printf("Semicolon at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_LANGLE:
-            printf("Left angle bracket at %u:%u\n",token.row,token.col);
+            printf("Left angle bracket at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_EQUAL:
-            printf("Equals sign at %u:%u\n",token.row,token.col);
+            printf("Equals sign at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_RANGLE:
-            printf("Right angle bracket at %u:%u\n",token.row,token.col);
+            printf("Right angle bracket at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_QUESTION:
-            printf("Question mark at %u:%u\n",token.row,token.col);
+            printf("Question mark at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_AT:
-            printf("At sign at %u:%u\n",token.row,token.col);
+            printf("At sign at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_LSQUARE:
-            printf("Left square bracket at %u:%u\n",token.row,token.col);
+            printf("Left square bracket at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_BSLASH:
-            printf("Backslash at %u:%u\n",token.row,token.col);
+            printf("Backslash at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_RSQUARE:
-            printf("Right square bracket at %u:%u\n",token.row,token.col);
+            printf("Right square bracket at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_CARET:
-            printf("Caret at %u:%u\n",token.row,token.col);
+            printf("Caret at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_BACKTICK:
-            printf("Backtick at %u:%u\n",token.row,token.col);
+            printf("Backtick at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_LCURLY:
-            printf("Left curly brace at %u:%u\n",token.row,token.col);
+            printf("Left curly brace at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_WALL:
-            printf("Wall at %u:%u\n",token.row,token.col);
+            printf("Wall at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_RCURLY:
-            printf("Right curly brace at %u:%u\n",token.row,token.col);
+            printf("Right curly brace at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_TILDE:
-            printf("Tilde at %u:%u\n",token.row,token.col);
+            printf("Tilde at %u:%u\n",token->row,token->col);
             break;
     }
 }

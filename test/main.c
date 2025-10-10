@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <lexer/lexer.h>
+#include <parser/peeker.h>
 
 int main(int argc, char** argv){
     if (argc < 2){
@@ -27,15 +28,12 @@ int main(int argc, char** argv){
         return 1;
     }
 
-    token_t* cur = lexed;
+    set_token_source(lexed);
 
-    do {
-        print_token(*cur);
-
-        if(cur->type != TOKEN_TYPE_TERMINATOR)
-            cur++;
-
-    } while(cur->type != TOKEN_TYPE_TERMINATOR);
+    print_token(peek());
+    print_token(peek());
+    print_token(consume());
+    print_token(expect(TOKEN_TYPE_HASH));
 
     free(buffer);
     free_token_array(lexed);
