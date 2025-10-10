@@ -198,7 +198,7 @@ bool process_stringo_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_type,
 
     switch(**pointer){
         case '"':
-            *to_append_type = TOKEN_TYPE_CHRLIT;
+            *to_append_type = TOKEN_TYPE_STRLIT;
             *mode = NORMALO_MODE;
             if (*pointer > *last_nalnum){
                 if(!append_char(&buf, &buf_filled, &buf_size, 0)){
