@@ -1,6 +1,6 @@
 program -> any number of programisms
 
-programism -> declaration | func-declaration
+programism -> (declaration ";") | func-declaration
 
 statement -> (expression |
              "{" any number of statements "}" |
