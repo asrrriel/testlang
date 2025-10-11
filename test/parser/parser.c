@@ -198,8 +198,50 @@ ast_node_t* parse_programism(src_file_t* file){
         }
     } else if(next->type == TOKEN_TYPE_LPAREN){
         node->type = AST_TYPE_FUNC_DECL;
-        free(node);
-        return NULL;
+        node->func_decl.return_type = stem.type;
+        node->func_decl.name = stem.name;
+        node->func_decl.args = create_ast_node_list();
+
+        while((next = peek(0))->type != TOKEN_TYPE_TERMINATOR){
+            consume(); // lparen or colon
+
+            if(expect(TOKEN_TYPE_DOT)){
+                ast_node_t* param = malloc(sizeof(ast_node_t));
+                param->type = AST_TYPE_DOTDOTDOT;
+                append_node(node->func_decl.args, param);
+                consume(); //dot
+                consume(); //dot
+                consume(); //dot
+
+            } else {
+                decl_stem_t stem = parse_decl_stem(file);
+    
+                if(!stem.name){
+                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE,
+                                                 *peek(0), true); //TODO: non-fatal errors
+                }
+
+                ast_node_t* param = malloc(sizeof(ast_node_t));
+                param->type = AST_TYPE_DECL;
+                param->decl.type = stem.type;
+                param->decl.name = stem.name;
+                param->decl.starting_value = NULL;
+
+                append_node(node->func_decl.args, param);
+            }
+            if(expect(TOKEN_TYPE_RPAREN)){
+                break;
+            }
+        }
+        consume(); //rparen
+
+        if(expect(TOKEN_TYPE_SEMI)){
+            consume();
+        } else {
+            throw_code_issue(*file, COMP_ERR_UNIMPLEMENTED, // no expression parsing (yet)
+                                             *peek(0), false); //TODO: non-fatal errors
+            return NULL;
+        }
     } else{
         throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
                                  *next, true); //TODO: non-fatal errors
@@ -283,7 +325,7 @@ void print_ast_node(ast_node_t* node,size_t indent){
             print_storage_type(node->decl.type, indent + INDENT_WIDTH);
             if(node->decl.starting_value){
                 printf("%s  |->Name: \"%s\"\n",indent_str,node->decl.name);
-                printf("%s  |->Storage type:\n",indent_str);
+                printf("%s  |->Starting value:\n",indent_str);
             } else {
                 printf("%s  \\->Name: \"%s\"\n",indent_str,node->decl.name);
             }
@@ -291,6 +333,22 @@ void print_ast_node(ast_node_t* node,size_t indent){
             if(node->decl.starting_value){
                 print_ast_node(node->decl.starting_value, indent + INDENT_WIDTH);
             }
+            break;
+
+        case AST_TYPE_FUNC_DECL:
+            printf("%sFunction declaration node:\n",indent_str);
+            printf("%s  |->Return type(+qualifiers):\n",indent_str);
+            print_storage_type(node->decl.type, indent + INDENT_WIDTH);
+            printf("%s  |->Name: \"%s\"\n",indent_str,node->func_decl.name);
+            printf("%s  |->Arguments: \n",indent_str);
+            free(indent_str); // no need for it after this
+            for(size_t i = 0;i < node->func_decl.args->count;i++){
+                print_ast_node(node->func_decl.args->nodes[i], indent + INDENT_WIDTH);
+            }
+            break;
+        
+        case AST_TYPE_DOTDOTDOT:
+            printf("%sElipses node\n",indent_str);
             break;
 
         default:

@@ -27,6 +27,7 @@ typedef enum {
     //global things
     AST_TYPE_PROGRAM,
     AST_TYPE_DECL,
+    AST_TYPE_DOTDOTDOT,
     AST_TYPE_FUNC_DECL,
 
     //statements
