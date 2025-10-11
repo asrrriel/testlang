@@ -11,12 +11,13 @@ typedef enum {
     BASE_TYPE_VOID
 } base_type_t;
 
-#define QUAL_CONST      1 << 0
-#define QUAL_LONG       1 << 1
-#define QUAL_UNSIGNED   1 << 2
-#define QUAL_EXTERN     1 << 3
+#define QUAL_CONST      (uint8_t)(1 << 0)
+#define QUAL_LONG       (uint8_t)(1 << 1)
+#define QUAL_UNSIGNED   (uint8_t)(1 << 2)
+#define QUAL_EXTERN     (uint8_t)(1 << 3)
 
 typedef struct {
+    bool valid; // to distinguish an invalid type from a simple char
     uint8_t qualifiers;
     base_type_t base;
     size_t ptr_depth; // ehh its fine for now
@@ -70,25 +71,29 @@ typedef enum {
     AST_TYPE_TERNARY_COND
 } ast_type_t;
 
-typedef struct __ast_node {
+//forward declarations
+typedef struct __ast_node ast_node_t;
+typedef struct __ast_node_list ast_node_list_t;
+
+struct __ast_node {
     ast_type_t type;
 
     union {
         struct {
-            struct __ast_node* programisms;
+            ast_node_list_t* programisms;
         } program;
 
         struct {
             storage_type_t type;
             char* name;
-            struct __ast_node* starting_value;
+            ast_node_t* starting_value;
         } decl;
 
         struct {
             storage_type_t return_type;
             char* name;
-            struct __ast_node* args;
-            struct __ast_node* body;
+            ast_node_list_t* args;
+            ast_node_t* body;
         } func_decl;
 
         struct {
@@ -96,16 +101,16 @@ typedef struct __ast_node {
         } label;
 
         struct {
-            struct __ast_node* stmts;
+            ast_node_list_t* stmts;
         } block;
 
         struct {
-            struct __ast_node* expr;
+            ast_node_t* expr;
         } eval;
 
         struct {
-            struct __ast_node* cond;
-            struct __ast_node* body;
+            ast_node_t* cond;
+            ast_node_t* body;
         } if_stmt;
 
         struct {
@@ -113,11 +118,11 @@ typedef struct __ast_node {
         } goto_stmt;
 
         struct {
-            struct __ast_node* val;
+            ast_node_t* val;
         } return_stmt;
 
         struct {
-            struct __ast_node* expr;
+            ast_node_t* expr;
         } paren;
 
         struct {
@@ -138,25 +143,30 @@ typedef struct __ast_node {
         } ident;
 
         struct {
-            struct __ast_node* expr;
+            ast_node_t* expr;
         } unary;
 
         struct {
-            struct __ast_node* left;
-            struct __ast_node* right;
+            ast_node_t* left;
+            ast_node_t* right;
         } binary;
 
         struct {
-            struct __ast_node* cond;
-            struct __ast_node* val_true;
-            struct __ast_node* val_false;
+            ast_node_t* cond;
+            ast_node_t* val_true;
+            ast_node_t* val_false;
         } ternary;
 
         struct {
-            struct __ast_node* fp;
-            struct __ast_node* args;
+            ast_node_t* fp;
+            ast_node_list_t* args;
         } func_call;
     };
-} ast_node_t;
+};
 
+struct __ast_node_list {
+    ast_node_t** nodes;
+    size_t count;
+    size_t size;
+};
 #endif // __AST_H__

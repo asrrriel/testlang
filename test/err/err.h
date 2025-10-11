@@ -5,10 +5,13 @@
 #include "util/srcfile.h"
 
 typedef enum {
+    COMP_ERR_UNIMPLEMENTED,
     COMP_ERR_INTERNAL_FAILIURE,
     COMP_ERR_IS_DIR,
     COMP_ERR_CANT_OPEN,
-    COMP_WARN_EMPTY
+    COMP_WARN_EMPTY,
+    COMP_ERR_DUPLICATE_QUALIFIER,
+    COMP_ERR_MISSING_SEMICOLON
 
 } comp_issue_t;
 

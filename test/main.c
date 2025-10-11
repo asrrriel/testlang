@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <lexer/lexer.h>
-#include <parser/peeker.h>
+#include <parser/parser.h>
 #include <sys/stat.h>
 #include <util/srcfile.h>
 #include <err/err.h>
@@ -60,18 +60,9 @@ void process_src(src_file_t* src){
         throw_noncode_issue(file, COMP_ERR_INTERNAL_FAILIURE, true);
     }
 
-    set_token_source(src->tokens);
+    parse(&file);
 
-    print_token(peek(0));
-    print_token(peek(0));
-    print_token(consume());
-    print_token(expect(TOKEN_TYPE_HASH));
-    print_token(peek(0));
-    print_token(peek(1));
-    print_token(expect_d(TOKEN_TYPE_STRING));
-    print_token(peek(0));
-    print_token(get_next(TOKEN_TYPE_CHRLIT,TOKEN_TYPE_TERMINATOR));
-
+    print_ast_node(file.ast,0);
 }
 
 void free_src(src_file_t* src){

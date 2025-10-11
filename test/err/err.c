@@ -8,17 +8,23 @@
 #define SEVERITY_ERR  2
 
 static const char* issue_labels[] = {
+    [COMP_ERR_UNIMPLEMENTED] = "Unimplemented feature",
     [COMP_ERR_INTERNAL_FAILIURE] = "Internal failiure",
     [COMP_ERR_IS_DIR] = "Is a directory",
     [COMP_ERR_CANT_OPEN] = "Couldn't open file",
-    [COMP_WARN_EMPTY] = "File is empty"
+    [COMP_WARN_EMPTY] = "File is empty",
+    [COMP_ERR_DUPLICATE_QUALIFIER] = "Duplicate qualifier",
+    [COMP_ERR_MISSING_SEMICOLON] = "Missing semicolon",
 };
 
 static const uint8_t issue_severities[] = {
+    [COMP_ERR_UNIMPLEMENTED] = SEVERITY_ERR,
     [COMP_ERR_INTERNAL_FAILIURE] = SEVERITY_ERR,
     [COMP_ERR_IS_DIR] = SEVERITY_ERR,
     [COMP_ERR_CANT_OPEN] = SEVERITY_ERR,
-    [COMP_WARN_EMPTY] = SEVERITY_WARN
+    [COMP_WARN_EMPTY] = SEVERITY_WARN,
+    [COMP_ERR_DUPLICATE_QUALIFIER] = SEVERITY_ERR,
+    [COMP_ERR_MISSING_SEMICOLON] = SEVERITY_ERR,
 };
 
 static const char* severity_labels[] = {
