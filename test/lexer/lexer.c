@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <util.h>
+#include <util/util.h>
 
 bool append_token(token_t** t,size_t* filled, size_t* size,token_t to_append){
     if((*filled)++ >= *size){

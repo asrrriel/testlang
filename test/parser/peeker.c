@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include "lexer/lexer.h"
 
+//HACK: peeker not thread safe
 token_t* cur;
 
 void set_token_source(token_t* tokens){

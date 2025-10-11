@@ -4,6 +4,7 @@
 #include <lexer/lexer.h>
 #include <stddef.h>
 
+//HACK: peeker not thread safe
 void set_token_source(token_t* tokens);
 
 token_t* peek(size_t lookahead);
