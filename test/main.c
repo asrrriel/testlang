@@ -30,10 +30,16 @@ int main(int argc, char** argv){
 
     set_token_source(lexed);
 
-    print_token(peek());
-    print_token(peek());
+    print_token(peek(0));
+    print_token(peek(0));
     print_token(consume());
     print_token(expect(TOKEN_TYPE_HASH));
+    print_token(peek(0));
+    print_token(peek(1));
+    print_token(expect_d(TOKEN_TYPE_STRING));
+    print_token(peek(0));
+    print_token(get_next(TOKEN_TYPE_CHRLIT,TOKEN_TYPE_TERMINATOR));
+    
 
     free(buffer);
     free_token_array(lexed);
