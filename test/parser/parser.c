@@ -391,6 +391,11 @@ void print_ast_node(ast_node_t* node,size_t indent){
             printf("%sInteger literal %s\n",indent_str,node->intlit.value);
             free(indent_str);
             break;
+        
+        case AST_TYPE_STRLIT:
+            printf("%sString literal \"%s\"\n",indent_str,node->intlit.value);
+            free(indent_str);
+            break;
 
         case AST_TYPE_DOTDOTDOT:
             printf("%sElipses node\n",indent_str);

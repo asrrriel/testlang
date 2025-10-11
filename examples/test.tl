@@ -3,6 +3,7 @@
 char a;
 unsigned char b = 255;
 const char c = '@';
+char* ur_moms_name = "Susanne";
 
 //we need printf
 extern int printf(char* fmt,...);
@@ -11,7 +12,6 @@ extern int printf(char* fmt,...);
 int add(int a, int b) return a + b;
 int sub(int a, int b) return a - b;
 
-char* ur_moms_name = "Susanne";
 
 int main(int argc, char** argv) {
     char* d = "the condition that distinguishes organisms from inorganic objects and dead organisms, being manifested by growth through metabolism, reproduction, and the power of adaptation to environment through changes originating internally."
