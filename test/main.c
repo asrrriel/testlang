@@ -2,59 +2,62 @@
 #include <stdlib.h>
 #include <lexer/lexer.h>
 #include <parser/peeker.h>
+#include <sys/stat.h>
 #include <util/srcfile.h>
+#include <err/err.h>
 
 src_file_t file;
 
 src_file_t open_src(char* path){
+    struct stat st;
+    src_file_t toret = {
+        .path = path,
+        .content = 0,
+        .tokens = 0,
+        .ast = 0,
+        .num_err = 0
+    };
+    
+    if (stat(path, &st) != 0) {
+        throw_noncode_issue(toret, COMP_ERR_INTERNAL_FAILIURE, true);
+    }
+
+    if(S_ISDIR(st.st_mode)){
+        throw_noncode_issue(toret, COMP_ERR_IS_DIR, true);
+    }
+    
+    
     FILE* input = fopen(path,"r");
     if(!input){
-        goto error;
+        throw_noncode_issue(toret, COMP_ERR_CANT_OPEN, true);
     }
 
     fseek(input,0,SEEK_END);
     size_t filesize = ftell(input);
     if(filesize == 0){
-        goto error;
+        throw_noncode_issue(toret, COMP_WARN_EMPTY, false);
     }
     fseek(input,0,SEEK_SET);
 
-    char* buffer = malloc(filesize+1);
+    toret.content = malloc(filesize+1);
 
-    if(!buffer){
-        goto error;
+    if(!toret.content){
+        throw_noncode_issue(toret, COMP_ERR_INTERNAL_FAILIURE, true);
     }
 
-    fread(buffer,filesize,1,input);
+    fread(toret.content,filesize,1,input);
 
-    buffer[filesize] = '\0';
+    toret.content[filesize] = '\0';
 
     fclose(input);
-    return (src_file_t){
-        .path = path,
-        .content = buffer,
-        .tokens = 0,
-        .ast = 0,
-        .num_err = 0
-    };
-
-    error:
-        fclose(input);
-        return (src_file_t){
-            .path = path,
-            .content = 0,
-            .tokens = 0,
-            .ast = 0,
-            .num_err = 1
-        };
+    return toret;
 }
 
 void process_src(src_file_t* src){
     src->tokens = lex(src->content);
 
     if(!src->tokens){
-        printf("ERROR! failed to lexxxxxx\n");
-        exit(1);
+        throw_noncode_issue(file, COMP_ERR_INTERNAL_FAILIURE, true);
     }
 
     set_token_source(src->tokens);
@@ -83,11 +86,6 @@ int main(int argc, char** argv){
     }
 
     file = open_src(argv[1]);
-
-    if(file.num_err != 0){
-        printf("ERROR! failed to open file \"%s\"!\n",file.path);
-        exit(1);
-    }
 
     process_src(&file);
 
