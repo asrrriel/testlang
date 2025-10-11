@@ -127,8 +127,7 @@ struct __ast_node {
         } paren;
 
         struct {
-            storage_type_t type;
-            uint64_t value;
+            char* value; // we dont give a damn, UYB can sort it out for us
         } intlit;
 
         struct {

@@ -17,6 +17,8 @@ static const char* issue_labels[] = {
     [COMP_ERR_MISSING_SEMICOLON] = "Missing semicolon",
     [COMP_ERR_EXPECTED_ARG_LIST] = "Expected argument list",
     [COMP_ERR_DECLARATION_CUT_OFF] = "Declaration cut off",
+    [COMP_ERR_EMPTY_CHRLIT] = "Empty character literal",
+    [COMP_ERR_MULTIBYTE_CHRLIT] = "Multibyte character doesn't fit in a standard char",
 };
 
 static const uint8_t issue_severities[] = {
@@ -29,6 +31,8 @@ static const uint8_t issue_severities[] = {
     [COMP_ERR_MISSING_SEMICOLON] = SEVERITY_ERR,
     [COMP_ERR_EXPECTED_ARG_LIST] = SEVERITY_ERR,
     [COMP_ERR_DECLARATION_CUT_OFF] = SEVERITY_ERR,
+    [COMP_ERR_EMPTY_CHRLIT] = SEVERITY_ERR,
+    [COMP_ERR_MULTIBYTE_CHRLIT] = SEVERITY_ERR,
 };
 
 static const char* severity_labels[] = {
