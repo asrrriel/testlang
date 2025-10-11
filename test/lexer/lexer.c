@@ -51,12 +51,9 @@ static const uint8_t symbols[127] = {
     ['~']  = TOKEN_TYPE_TILDE
 };
 
-typedef bool (*modefn_t)(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum);
+typedef bool (*modefn_t)(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum, bool* in_escape);
 
-//HACK: global state for string and character literals, may break stuff if we want to lex multiple files at once
-bool in_escape = false;
-
-bool process_normalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_normalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum, bool* in_escape){
     switch(**pointer){
         case ' ':
             *last_nalnum = *pointer + 1; // this is not alphanumeric
@@ -118,13 +115,13 @@ bool process_normalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_
             break;
 
         case '"':
-            in_escape = false;
+            *in_escape = false;
             *mode = STRINGO_LITERALO_MODE;
             *last_nalnum = *pointer + 1; // use last_nalnum for the string buffer too
             break;
 
         case '\'':
-            in_escape = false;
+            *in_escape = false;
             *mode = CHARACTERO_LITERALO_MODE;
             *last_nalnum = *pointer + 1; // use last_nalnum for the char buffer too
             break;
@@ -143,7 +140,7 @@ bool process_normalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_
     return true;
 }
 
-bool process_commento_mode(lexer_mode_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_commento_mode(lexer_mode_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum, UNUSED bool* in_escape){
     switch(**pointer){
         case '\n':
             (*row)++;
@@ -155,7 +152,7 @@ bool process_commento_mode(lexer_mode_t* mode, UNUSED uint32_t* to_append_type, 
     return true;
 }
 
-bool process_multilino_commento_mode(lexer_mode_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_multilino_commento_mode(lexer_mode_t* mode, UNUSED uint32_t* to_append_type, UNUSED uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum, UNUSED bool* in_escape){
     switch(**pointer){
         case '\n':
             (*row)++;
@@ -173,18 +170,18 @@ bool process_multilino_commento_mode(lexer_mode_t* mode, UNUSED uint32_t* to_app
     return true;
 }
 
-bool process_stringo_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_stringo_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum, bool* in_escape){
     switch(**pointer){
         case '\n':
             (*row)++;
             *col = 0;
-            in_escape = false;
+            *in_escape = false;
             break;
         case '\\':
-            in_escape = !in_escape; // accout for the escape "\\"'s second backslash triggering this
+            *in_escape = !(*in_escape); // accout for the escape "\\"'s second backslash triggering this
             break;
         case '"':
-            if (*pointer > *last_nalnum && !in_escape){
+            if (*pointer > *last_nalnum && !(*in_escape)){
                 size_t alnum_size = *pointer - *last_nalnum;
                 char*  buf = malloc(alnum_size + 1);
 
@@ -197,24 +194,24 @@ bool process_stringo_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_type,
                 *mode = NORMALO_MODE;
             }
         default: //fallthru
-            in_escape = false;
+            *in_escape = false;
             break;
     }
     return true;
 }
 
-bool process_charactero_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum){
+bool process_charactero_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_t* to_append_value, size_t* row, size_t* col, char** pointer, char** last_nalnum, bool* in_escape){
     switch(**pointer){
         case '\n':
             (*row)++;
             *col = 0;
-            in_escape = false;
+            *in_escape = false;
             break;
         case '\\':
-            in_escape = !in_escape; // accout for the escape "\\"'s second backslash triggering this
+            *in_escape = !(*in_escape); // accout for the escape "\\"'s second backslash triggering this
             break;
         case '\'':
-            if (*pointer > *last_nalnum && !in_escape){
+            if (*pointer > *last_nalnum && !(*in_escape)){
                 size_t alnum_size = *pointer - *last_nalnum;
                 char*  buf = malloc(alnum_size + 1);
 
@@ -227,7 +224,7 @@ bool process_charactero_literalo_mode(lexer_mode_t* mode, uint32_t* to_append_ty
                 *mode = NORMALO_MODE;
             }
         default: //fallthru
-            in_escape = false;
+            *in_escape = false;
             break;
     }
     return true;
@@ -257,9 +254,10 @@ token_t* lex(const char* null_terminated_string){
     uintptr_t to_append_value = 0;
 
     lexer_mode_t mode = NORMALO_MODE;
+    bool in_escape = false;
 
     while(pointer < null_terminated_string + len) {
-        if(!mode_functions[mode](&mode, &to_append_type, &to_append_value, &row, &col, &pointer, &last_nalnum))
+        if(!mode_functions[mode](&mode, &to_append_type, &to_append_value, &row, &col, &pointer, &last_nalnum,&in_escape))
             goto error;
 
         if (to_append_type != 0) {
