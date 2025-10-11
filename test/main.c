@@ -66,8 +66,9 @@ void process_src(src_file_t* src){
 }
 
 void free_src(src_file_t* src){
-    free(src->content);
+    free_ast_node(src->ast);
     free_token_array(src->tokens);
+    free(src->content);
 }
 
 int main(int argc, char** argv){

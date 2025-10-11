@@ -1,6 +1,6 @@
 program -> any number of programisms
 
-programism -> (declaration ";") | func-declaration
+programism -> decl-stem (decl-head | func-decl-head) 
 
 statement -> (expression |
              "{" any number of statements "}" |
@@ -21,14 +21,15 @@ expression -> literal |
 
 if-stmt -> "if" expression
 label   -> IDENTIFIER ":"
-goto-stmt -> "goto" IDENTIFIER 
-
-declaration      -> type-expr IDENTIFIER ("=" expression)?
-func-declaration -> type-expr IDENTIFIER "(" arg-list-def ")" (statement | ";")
+goto-stmt -> "goto" IDENTIFIER
 
 type-expr -> qualifier type ptr-denotation?
-arg-list-def   -> declaration | (arg-list "," declaration) | (arg-list "," "...")
+arg-list-def   -> decl-stem | (arg-list "," decl-stem) | (arg-list "," "...")
 arg-list-call  -> expression  | (arg-list  "," expression)
+
+decl-head      -> (("=" expression)? ";")
+func-decl-head -> "(" arg-list-def ")" (statement | ";")
+decl-stem      -> type-expr IDENTIFIER
 
 ptr-denotation -> "*" | ptr-denotation "*" 
 qualifier -> qualifier? ("const" | "long" | "unsigned" | "extern")?

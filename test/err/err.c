@@ -15,6 +15,8 @@ static const char* issue_labels[] = {
     [COMP_WARN_EMPTY] = "File is empty",
     [COMP_ERR_DUPLICATE_QUALIFIER] = "Duplicate qualifier",
     [COMP_ERR_MISSING_SEMICOLON] = "Missing semicolon",
+    [COMP_ERR_EXPECTED_ARG_LIST] = "Expected argument list",
+    [COMP_ERR_DECLARATION_CUT_OFF] = "Declaration cut off",
 };
 
 static const uint8_t issue_severities[] = {
@@ -25,6 +27,8 @@ static const uint8_t issue_severities[] = {
     [COMP_WARN_EMPTY] = SEVERITY_WARN,
     [COMP_ERR_DUPLICATE_QUALIFIER] = SEVERITY_ERR,
     [COMP_ERR_MISSING_SEMICOLON] = SEVERITY_ERR,
+    [COMP_ERR_EXPECTED_ARG_LIST] = SEVERITY_ERR,
+    [COMP_ERR_DECLARATION_CUT_OFF] = SEVERITY_ERR,
 };
 
 static const char* severity_labels[] = {
@@ -47,10 +51,11 @@ void throw_noncode_issue(src_file_t file,comp_issue_t issue,bool fatal){
 
 void throw_code_issue(src_file_t file,comp_issue_t issue,token_t highlight,bool fatal){
 
-    printf("%s at %s:%u: %s\n",
+    printf("%s at %s:%u:%u: %s\n",
         severity_labels[issue_severities[issue]],
         file.path,
         highlight.row,
+        highlight.col,
         issue_labels[issue]);
 
     if(fatal){

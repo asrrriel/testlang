@@ -92,7 +92,9 @@ static bool is_stmt_kw(token_t* token){
     return false;
 }
 
+//TODO: expression parsing
 ast_node_t* parse_expr(UNUSED src_file_t* file){
+    consume();
     return NULL;
 }
 
@@ -141,7 +143,14 @@ storage_type_t parse_type_expr(src_file_t* file){
     return toret;
 }
 
-ast_node_t* parse_decl(src_file_t* file){
+typedef struct {
+    storage_type_t type;
+    char* name;
+} decl_stem_t;
+
+decl_stem_t parse_decl_stem(src_file_t* file){
+    decl_stem_t toret = {0};
+
     storage_type_t decl_type = parse_type_expr(file);
 
     token_t* next = expect_d(TOKEN_TYPE_STRING);
@@ -149,40 +158,54 @@ ast_node_t* parse_decl(src_file_t* file){
     //failiure cases: invalid storage type, no name token(or its not a string),
     // name token is a keyword
     if(!decl_type.valid || !next 
-        || is_basetype(next) || is_qualifier(next) || is_stmt_kw(next))
-        return NULL;
+        || is_basetype(next) || is_qualifier(next) || is_stmt_kw(next)){
 
+        return (decl_stem_t){0};
+    }
+
+    toret.type = decl_type;
+    toret.name = (char*)next->value;
+
+    return toret;
+}
+
+ast_node_t* parse_programism(src_file_t* file){
     ast_node_t* node = malloc(sizeof(ast_node_t));
+    decl_stem_t stem = parse_decl_stem(file);
 
-    node->type = AST_TYPE_DECL;
-    node->decl.type = decl_type;
-    node->decl.name = (char*)next->value;
+    token_t* next = peek(0);
 
-    next = consume();
+    if(!next || next->type == TOKEN_TYPE_TERMINATOR) {
+        throw_code_issue(*file, COMP_ERR_DECLARATION_CUT_OFF,
+                                 *next, true); //TODO: non-fatal errors
+    }
 
-    if(next->type == TOKEN_TYPE_EQUAL){
-        node->decl.starting_value = parse_expr(file);
-    } else if (next->type == TOKEN_TYPE_SEMI) {
+    if(next->type == TOKEN_TYPE_SEMI){
+        node->type = AST_TYPE_DECL;
+        node->decl.type = stem.type;
+        node->decl.name = stem.name;
         node->decl.starting_value = NULL;
-    } else {
+        consume();
+    } else if(next->type == TOKEN_TYPE_EQUAL){
+        node->type = AST_TYPE_DECL;
+        node->decl.type = stem.type;
+        node->decl.name = stem.name;
+        consume();
+        node->decl.starting_value = parse_expr(file);
+        if(!expect_d(TOKEN_TYPE_SEMI)){
+            throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
+                                             *next, true); //TODO: non-fatal errors
+        }
+    } else if(next->type == TOKEN_TYPE_LPAREN){
+        node->type = AST_TYPE_FUNC_DECL;
+        free(node);
+        return NULL;
+    } else{
         throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
                                  *next, true); //TODO: non-fatal errors
     }
 
     return node;
-}
-
-ast_node_t* parse_func_decl(UNUSED src_file_t* file){
-    return NULL;
-}
-
-ast_node_t* parse_programism(src_file_t* file){
-    ast_node_t* node = NULL;
-    if((node = parse_decl(file))){
-        return node;
-    }  else {
-        return parse_func_decl(file);
-    }
 }
 
 ast_node_t* parse_program(src_file_t* file){
@@ -274,4 +297,24 @@ void print_ast_node(ast_node_t* node,size_t indent){
             printf("%sUnknown node\n",indent_str);
             free(indent_str);
     }
+}
+
+void free_ast_node(ast_node_t* node){
+    if(!node){
+        return;
+    }
+
+    switch(node->type){
+        case AST_TYPE_PROGRAM:
+            for(size_t i = 0;i < node->program.programisms->count;i++){
+                free_ast_node(node->program.programisms->nodes[i]);
+            }
+            free(node->program.programisms->nodes);
+            free(node->program.programisms);
+            break;
+
+        default:
+            break;
+    }
+    free(node);
 }
