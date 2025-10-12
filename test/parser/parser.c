@@ -115,11 +115,11 @@ storage_type_t parse_type_expr(src_file_t* file){
             }
 
             toret.qualifiers |= q;
-            consume();
+            consume(1);
         }
     }
 
-    if(!is_basetype(next = consume())){
+    if(!is_basetype(next = consume(1))){
         return (storage_type_t){0}; // not a declaration
     }
 
@@ -132,7 +132,7 @@ storage_type_t parse_type_expr(src_file_t* file){
 
     while((next = peek(0))->type == TOKEN_TYPE_STAR){
         toret.ptr_depth++;
-        consume();
+        consume(1);
     }
 
     return toret;
@@ -180,17 +180,17 @@ ast_node_t* parse_expr_until(UNUSED src_file_t* file,UNUSED token_type_t until){
                                  *next, true); //TODO: non-fatal errors
         }
         node->chrlit.value = ((char*)next->value)[0];
-        consume();
+        consume(1);
     } else if((next = expect(TOKEN_TYPE_STRING)) && isdigit(((char*)next->value)[0])){ 
         node->type = AST_TYPE_INTLIT;
         node->intlit.value = (char*)next->value;
-        consume();
+        consume(1);
     } else if((next = expect(TOKEN_TYPE_STRLIT))){ 
         node->type = AST_TYPE_STRLIT;
         node->intlit.value = (char*)next->value;
-        consume();
+        consume(1);
     } else {
-        consume();
+        consume(1);
         free(node);
         return NULL;
     }
@@ -200,7 +200,7 @@ ast_node_t* parse_expr_until(UNUSED src_file_t* file,UNUSED token_type_t until){
 
 //TODO: statement parsing
 ast_node_list_t* parse_stmts_until(UNUSED src_file_t* file,UNUSED token_type_t until){
-    consume();
+    consume(1);
     return NULL;
 }
 
@@ -220,12 +220,12 @@ ast_node_t* parse_programism(src_file_t* file){
         node->decl.type = stem.type;
         node->decl.name = stem.name;
         node->decl.starting_value = NULL;
-        consume();
+        consume(1);
     } else if(next->type == TOKEN_TYPE_EQUAL){
         node->type = AST_TYPE_DECL;
         node->decl.type = stem.type;
         node->decl.name = stem.name;
-        consume();
+        consume(1);
         node->decl.starting_value = parse_expr_until(file,TOKEN_TYPE_SEMI);
         if(!expect_d(TOKEN_TYPE_SEMI)){
             throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
@@ -238,15 +238,13 @@ ast_node_t* parse_programism(src_file_t* file){
         node->func_decl.args = create_ast_node_list();
 
         while((next = peek(0))->type != TOKEN_TYPE_TERMINATOR){
-            consume(); // lparen or colon
+            consume(1); // lparen or colon
 
             if(expect(TOKEN_TYPE_DOT)){
                 ast_node_t* param = malloc(sizeof(ast_node_t));
                 param->type = AST_TYPE_DOTDOTDOT;
                 append_node(node->func_decl.args, param);
-                consume(); //dot
-                consume(); //dot
-                consume(); //dot
+                consume(3); // dot x3
 
             } else {
                 decl_stem_t stem = parse_decl_stem(file);
@@ -268,10 +266,10 @@ ast_node_t* parse_programism(src_file_t* file){
                 break;
             }
         }
-        consume(); //rparen
+        consume(1); //rparen
 
         if(expect(TOKEN_TYPE_SEMI)){
-            consume();
+            consume(1);
         } else {
             throw_code_issue(*file, COMP_ERR_UNIMPLEMENTED, // no expression parsing (yet)
                                              *peek(0), false); //TODO: non-fatal errors
@@ -391,7 +389,7 @@ void print_ast_node(ast_node_t* node,size_t indent){
             printf("%sInteger literal %s\n",indent_str,node->intlit.value);
             free(indent_str);
             break;
-        
+
         case AST_TYPE_STRLIT:
             printf("%sString literal \"%s\"\n",indent_str,node->intlit.value);
             free(indent_str);
