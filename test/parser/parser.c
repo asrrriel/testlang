@@ -165,11 +165,19 @@ decl_stem_t parse_decl_stem(src_file_t* file){
 }
 
 //TODO: expression parsing
-ast_node_t* parse_expr_until(UNUSED src_file_t* file,UNUSED token_type_t until){
+ast_node_t* parse_expr_until(src_file_t* file,UNUSED token_t* until){
     ast_node_t* node = malloc(sizeof(ast_node_t));
     token_t* next;
+
+    node->type = AST_TYPE_PROGRAM; //impossible to get other than not hitting any primary-expr
+
     //primary expr
-    if((next = expect(TOKEN_TYPE_CHRLIT))){
+    if((next = expect(TOKEN_TYPE_LPAREN))) {
+        throw_code_issue(*file, COMP_ERR_UNIMPLEMENTED, // TODO: ecapsulation
+                                             *peek(0), false); //TODO: non-fatal errors
+        free_ast_node(node);
+        return NULL;
+    } else if((next = expect(TOKEN_TYPE_CHRLIT))){
         node->type = AST_TYPE_CHRLIT;
         if(!next->value){
              throw_code_issue(*file, COMP_ERR_EMPTY_CHRLIT,
@@ -185,12 +193,56 @@ ast_node_t* parse_expr_until(UNUSED src_file_t* file,UNUSED token_type_t until){
         node->type = AST_TYPE_INTLIT;
         node->intlit.value = (char*)next->value;
         consume(1);
-    } else if((next = expect(TOKEN_TYPE_STRLIT))){ 
+    } else if((next = expect(TOKEN_TYPE_STRING))){ 
+        node->type = AST_TYPE_IDENT;
+        node->ident.name = (char*)next->value;
+        consume(1);
+    } else if((next = expect(TOKEN_TYPE_STRLIT))){
         node->type = AST_TYPE_STRLIT;
         node->intlit.value = (char*)next->value;
         consume(1);
-    } else {
-        consume(1);
+    }
+
+    while ((next = expect(TOKEN_TYPE_LPAREN))){
+        printf("a\n");
+
+        if(node->type == AST_TYPE_PROGRAM){ //unchanged
+            throw_code_issue(*file, COMP_ERR_DANGLING_POSTFIX,
+                                             *next, true); //TODO: non-fatal errors
+        }
+
+        ast_node_t* newnode = malloc(sizeof(ast_node_t));
+
+        newnode->type = AST_TYPE_FUNC_CALL;
+        newnode->func_call.fp = node;
+        newnode->func_call.args = create_ast_node_list();
+
+        node = newnode;
+
+        token_t* rparen = get_next_us(TOKEN_TYPE_RPAREN, until); //HACK: doesnt account for parenthesis depth
+
+        do {
+            printf("b\n");
+            consume(1); //lparen or comma
+            token_t* next_comma = get_next_us(TOKEN_TYPE_COMMA, rparen);
+
+            ast_node_t* arg = parse_expr_until(file,next_comma);
+
+            if(arg){
+                append_node(newnode->func_call.args, arg);
+            }
+
+            next = peek(0);
+        } while (next < rparen);
+
+        if(next != rparen){
+            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE,
+                                             *peek(0), true); //TODO: non-fatal errors
+        }
+        consume(1); //rparen
+    }
+
+    if(node->type == AST_TYPE_PROGRAM){ //unchanged
         free(node);
         return NULL;
     }
@@ -199,7 +251,7 @@ ast_node_t* parse_expr_until(UNUSED src_file_t* file,UNUSED token_type_t until){
 }
 
 //TODO: statement parsing
-ast_node_list_t* parse_stmts_until(UNUSED src_file_t* file,UNUSED token_type_t until){
+ast_node_list_t* parse_stmts_until(UNUSED src_file_t* file,UNUSED token_t* until){
     consume(1);
     return NULL;
 }
@@ -226,7 +278,7 @@ ast_node_t* parse_programism(src_file_t* file){
         node->decl.type = stem.type;
         node->decl.name = stem.name;
         consume(1);
-        node->decl.starting_value = parse_expr_until(file,TOKEN_TYPE_SEMI);
+        node->decl.starting_value = parse_expr_until(file,get_next(TOKEN_TYPE_SEMI, TOKEN_TYPE_TERMINATOR));
         if(!expect_d(TOKEN_TYPE_SEMI)){
             throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
                                              *next, true); //TODO: non-fatal errors
@@ -348,7 +400,7 @@ void print_ast_node(ast_node_t* node,size_t indent){
 
     switch(node->type){
         case AST_TYPE_PROGRAM:
-            printf("%sProgram node:\n",indent_str);
+            printf("%sProgram:\n",indent_str);
             free(indent_str); // no need for it after this
             for(size_t i = 0;i < node->program.programisms->count;i++){
                 print_ast_node(node->program.programisms->nodes[i], indent + INDENT_WIDTH);
@@ -356,7 +408,7 @@ void print_ast_node(ast_node_t* node,size_t indent){
             break;
 
         case AST_TYPE_DECL:
-            printf("%sDeclaration node:\n",indent_str);
+            printf("%sDeclaration:\n",indent_str);
             printf("%s  |->Storage type:\n",indent_str);
             print_storage_type(node->decl.type, indent + INDENT_WIDTH);
             if(node->decl.starting_value){
@@ -372,14 +424,25 @@ void print_ast_node(ast_node_t* node,size_t indent){
             break;
 
         case AST_TYPE_FUNC_DECL:
-            printf("%sFunction declaration node:\n",indent_str);
+            printf("%sFunction declaration:\n",indent_str);
             printf("%s  |->Return type(+qualifiers):\n",indent_str);
-            print_storage_type(node->decl.type, indent + INDENT_WIDTH);
+            print_storage_type(node->decl.type, indent + INDENT_WIDTH*2);
             printf("%s  |->Name: \"%s\"\n",indent_str,node->func_decl.name);
             printf("%s  |->Arguments: \n",indent_str);
             free(indent_str); // no need for it after this
             for(size_t i = 0;i < node->func_decl.args->count;i++){
-                print_ast_node(node->func_decl.args->nodes[i], indent + INDENT_WIDTH);
+                print_ast_node(node->func_decl.args->nodes[i], indent + INDENT_WIDTH*2);
+            }
+            break;
+
+        case AST_TYPE_FUNC_CALL:
+            printf("%sFunction call:\n",indent_str);
+            printf("%s  |->Function pointer to call: \n",indent_str);
+            print_ast_node(node->func_call.fp, indent + INDENT_WIDTH*2);
+            printf("%s  \\->Arguments: \n",indent_str);
+            free(indent_str); // no need for it after this
+            for(size_t i = 0;i < node->func_call.args->count;i++){
+                print_ast_node(node->func_call.args->nodes[i], indent + INDENT_WIDTH*2);
             }
             break;
         case AST_TYPE_CHRLIT:
@@ -398,12 +461,17 @@ void print_ast_node(ast_node_t* node,size_t indent){
             break;
 
         case AST_TYPE_DOTDOTDOT:
-            printf("%sElipses node\n",indent_str);
+            printf("%sElipses\n",indent_str);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_IDENT:
+            printf("%sIdentifier \"%s\"\n",indent_str,node->ident.name);
             free(indent_str);
             break;
 
         default:
-            printf("%sUnknown node\n",indent_str);
+            printf("%sUnknown\n",indent_str);
             free(indent_str);
     }
 }
@@ -428,6 +496,15 @@ void free_ast_node(ast_node_t* node){
             }
             free(node->func_decl.args->nodes);
             free(node->func_decl.args);
+            break;
+        
+        case AST_TYPE_FUNC_CALL:
+            for(size_t i = 0;i < node->func_call.args->count;i++){
+                free_ast_node(node->func_call.args->nodes[i]);
+            }
+            free(node->func_call.args->nodes);
+            free(node->func_call.args);
+            free_ast_node(node->func_call.fp);
             break;
 
         default:

@@ -13,9 +13,9 @@ statement -> (expression |
 expression -> literal |
               IDENTIFIER |
               "(" expression ")" |
+              expression "(" arg-list-call ")" |
               unary |
               binary |
-              expression "(" arg-list-call ")" |
               expression "?" expression ":" expression
 
 

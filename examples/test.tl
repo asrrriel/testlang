@@ -1,7 +1,7 @@
 //comments are knowing you, ie owing you wowing wooooo
 /* char redacted = 'a';*/
 char a;
-unsigned char b = 255;
+unsigned char b = asdf(1,2,3,4,5);
 const char c = '@';
 char* ur_moms_name = "Susanne";
 
