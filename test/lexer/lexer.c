@@ -243,7 +243,7 @@ token_t* lex(const char* null_terminated_string){
     size_t num_tokens = 0;
     size_t size       = 10;
 
-    size_t row = 0;
+    size_t row = 1;
     size_t col = 0;
 
     char*  pointer     = (char*)null_terminated_string;
