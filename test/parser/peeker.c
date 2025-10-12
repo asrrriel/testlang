@@ -33,6 +33,34 @@ token_t* expect_d(token_type_t type){
     return cur++;
 }
 
+token_t* get_next_us(token_type_t type,token_t* until){
+    int32_t lookahead = 0;
+    token_t* next = 0;
+
+    do{
+        next = peek(lookahead);
+        if(next >= until){
+            return NULL;
+        }
+        lookahead++;
+    } while(next->type != type);
+
+    return next;
+}
+token_t* get_prev_us(token_type_t type,token_t* until){
+    int32_t lookahead = 0;
+    token_t* next = 0;
+
+    do{
+        next = peek(lookahead);
+        if(next <= until){
+            return NULL;
+        }
+        lookahead--;
+    } while(next->type != type);
+
+    return next;
+}
 
 token_t* get_next(token_type_t type,token_type_t until){
     int32_t lookahead = 0;
