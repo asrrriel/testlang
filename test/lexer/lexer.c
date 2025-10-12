@@ -122,6 +122,13 @@ bool process_normalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_
                 *last_nalnum = *pointer + 1; // this is not alphanumeric
                 break;
             }
+            if(**pointer == '=' && (*pointer)[1] == '='){
+                *to_append_type = TOKEN_TYPE_EQEQ;
+                (*pointer)++; //just quietly skip that character
+                (*col)++;
+                *last_nalnum = *pointer + 1; // this is not alphanumeric
+                break;
+            }
             if(**pointer == '!' && (*pointer)[1] == '='){
                 *to_append_type = TOKEN_TYPE_NE;
                 (*pointer)++; //just quietly skip that character
@@ -464,6 +471,9 @@ void print_token(token_t* token){
             break;
         case TOKEN_TYPE_OROR:
             printf("Double wall at %u:%u\n",token->row,token->col);
+            break;
+        case TOKEN_TYPE_EQEQ:
+            printf("Double equal sign at %u:%u\n",token->row,token->col);
             break;
         case TOKEN_TYPE_NE:
             printf("Negated equal sign at %u:%u\n",token->row,token->col);

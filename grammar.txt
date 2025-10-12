@@ -19,7 +19,7 @@ expression -> literal |
               expression "?" expression ":" expression
 
 
-if-stmt -> "if" expression
+if-stmt -> "if" "(" expression ")" statement
 label   -> IDENTIFIER ":"
 goto-stmt -> "goto" IDENTIFIER
 
