@@ -108,6 +108,48 @@ bool process_normalo_mode(lexer_mode_t* mode, uint32_t* to_append_type, uintptr_
                 *mode = MULTILINO_COMMENTO_MODE;
                 break;
             }
+            if(**pointer == '&' && (*pointer)[1] == '&'){
+                *to_append_type = TOKEN_TYPE_ANDAND;
+                (*pointer)++; //just quietly skip that character
+                (*col)++;
+                *last_nalnum = *pointer + 1; // this is not alphanumeric
+                break;
+            }
+            if(**pointer == '|' && (*pointer)[1] == '|'){
+                *to_append_type = TOKEN_TYPE_OROR;
+                (*pointer)++; //just quietly skip that character
+                (*col)++;
+                *last_nalnum = *pointer + 1; // this is not alphanumeric
+                break;
+            }
+            if(**pointer == '!' && (*pointer)[1] == '='){
+                *to_append_type = TOKEN_TYPE_NE;
+                (*pointer)++; //just quietly skip that character
+                (*col)++;
+                *last_nalnum = *pointer + 1; // this is not alphanumeric
+                break;
+            }
+            if(**pointer == '>' && (*pointer)[1] == '='){
+                *to_append_type = TOKEN_TYPE_GTE;
+                (*pointer)++; //just quietly skip that character
+                (*col)++;
+                *last_nalnum = *pointer + 1; // this is not alphanumeric
+                break;
+            }
+            if(**pointer == '<' && (*pointer)[1] == '='){
+                *to_append_type = TOKEN_TYPE_LTE;
+                (*pointer)++; //just quietly skip that character
+                (*col)++;
+                *last_nalnum = *pointer + 1; // this is not alphanumeric
+                break;
+            }
+            if(**pointer == '.' && (*pointer)[1] == '.' && (*pointer)[2] == '.'){
+                *to_append_type = TOKEN_TYPE_DOTDOTDOT;
+                (*pointer)+=2; //just quietly skip that character
+                (*col)+=2;
+                *last_nalnum = *pointer + 1; // this is not alphanumeric
+                break;
+            }
 
             //actual symbol processing
             *to_append_type = symbols[(uint8_t)**pointer];
@@ -416,6 +458,24 @@ void print_token(token_t* token){
             break;
         case TOKEN_TYPE_TILDE:
             printf("Tilde at %u:%u\n",token->row,token->col);
+            break;
+        case TOKEN_TYPE_ANDAND:
+            printf("Double ampersand at %u:%u\n",token->row,token->col);
+            break;
+        case TOKEN_TYPE_OROR:
+            printf("Double wall at %u:%u\n",token->row,token->col);
+            break;
+        case TOKEN_TYPE_NE:
+            printf("Negated equal sign at %u:%u\n",token->row,token->col);
+            break;
+        case TOKEN_TYPE_GTE:
+            printf("Less-than-or-equal sign at %u:%u\n",token->row,token->col);
+            break;
+        case TOKEN_TYPE_LTE:
+            printf("Greater-than-or-equal at %u:%u\n",token->row,token->col);
+            break;
+        case TOKEN_TYPE_DOTDOTDOT:
+            printf("Elipses at %u:%u\n",token->row,token->col);
             break;
     }
 }

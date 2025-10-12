@@ -240,11 +240,11 @@ ast_node_t* parse_programism(src_file_t* file){
         while((next = peek(0))->type != TOKEN_TYPE_TERMINATOR){
             consume(1); // lparen or colon
 
-            if(expect(TOKEN_TYPE_DOT)){
+            if(expect(TOKEN_TYPE_DOTDOTDOT)){
                 ast_node_t* param = malloc(sizeof(ast_node_t));
                 param->type = AST_TYPE_DOTDOTDOT;
                 append_node(node->func_decl.args, param);
-                consume(3); // dot x3
+                consume(1); // dotdotdot
 
             } else {
                 decl_stem_t stem = parse_decl_stem(file);
@@ -342,6 +342,8 @@ void print_ast_node(ast_node_t* node,size_t indent){
     indent_str[indent] = 0;
     if(!node){
         printf("%sNull node\n",indent_str);
+        free(indent_str);
+        return;
     }
 
     switch(node->type){

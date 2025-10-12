@@ -60,6 +60,13 @@ void process_src(src_file_t* src){
         throw_noncode_issue(file, COMP_ERR_INTERNAL_FAILIURE, true);
     }
 
+    //token_t* cur = src->tokens;
+    //do {
+    //    print_token(cur);
+    //    if(cur->type != TOKEN_TYPE_TERMINATOR)
+    //        cur++;
+    //} while(cur->type != TOKEN_TYPE_TERMINATOR); 
+
     parse(&file);
 
     print_ast_node(file.ast,0);
