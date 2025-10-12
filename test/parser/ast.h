@@ -37,6 +37,7 @@ typedef enum {
     AST_TYPE_IF,
     AST_TYPE_GOTO,
     AST_TYPE_RETURN,
+    AST_TYPE_EMPTY_STMT,
 
     //primary expressions
     AST_TYPE_PAREN,
@@ -66,6 +67,7 @@ typedef enum {
     AST_TYPE_LT,
     AST_TYPE_GTE,
     AST_TYPE_LTE,
+    AST_TYPE_ASS,
 
     //ternary expressions
     AST_TYPE_FUNC_CALL,

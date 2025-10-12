@@ -74,9 +74,10 @@ static bool is_basetype(token_t* token){
     return false;
 }
 
-static const char* stmt_kws[2] = {
+static const char* stmt_kws[3] = {
     "if",
     "goto",
+    "return",
 };
 
 static bool is_stmt_kw(token_t* token){
@@ -84,7 +85,7 @@ static bool is_stmt_kw(token_t* token){
         return false;
     }
 
-    for(uint8_t i = 0; i < 2; i++){
+    for(uint8_t i = 0; i < 3; i++){
         if(strcmp((char*)token->value,stmt_kws[i]) == 0){
             return true;
         }
@@ -165,11 +166,274 @@ decl_stem_t parse_decl_stem(src_file_t* file){
 }
 
 //TODO: expression parsing
-ast_node_t* parse_expr_until(src_file_t* file,UNUSED token_t* until){
+ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
     ast_node_t* node = malloc(sizeof(ast_node_t));
     token_t* next;
 
     node->type = AST_TYPE_PROGRAM; //impossible to get other than not hitting any primary-expr
+
+    //assignment
+    token_t* old = peek(0);
+    set_ptr(until);
+    if((next = get_prev_us(TOKEN_TYPE_EQUAL, old))) {
+        set_ptr(old);
+        ast_node_t* left = parse_expr_until(file, next);
+        set_ptr(next+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+
+        node->type = AST_TYPE_ASS;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //TODO: ternary
+
+    //logical OR
+    set_ptr(old);
+    if((next = get_next_us(TOKEN_TYPE_OROR, until))) {
+        ast_node_t* left = parse_expr_until(file, next);
+        set_ptr(next+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_LOR;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //logical AND
+    if((next = get_next_us(TOKEN_TYPE_ANDAND, until))) {
+        ast_node_t* left = parse_expr_until(file, next);
+        set_ptr(next+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_LAND;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //bitwise OR
+    if((next = get_next_us(TOKEN_TYPE_WALL, until))) {
+        ast_node_t* left = parse_expr_until(file, next);
+        set_ptr(next+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_OR;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //bitwise XOR
+    if((next = get_next_us(TOKEN_TYPE_CARET, until))) {
+        ast_node_t* left = parse_expr_until(file, next);
+        set_ptr(next+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_XOR;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //bitwise AND
+    if((next = get_next_us(TOKEN_TYPE_AND, until))) {
+        ast_node_t* left = parse_expr_until(file, next);
+        set_ptr(next+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_AND;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //equality and unequality checks
+    token_t* next1 = get_next_us(TOKEN_TYPE_EQEQ, until);
+    token_t* next2 = get_next_us(TOKEN_TYPE_NE, until);
+
+    if(next1 && next1 < next2) {
+        ast_node_t* left = parse_expr_until(file, next1);
+        set_ptr(next1+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_EQ;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    } else if(next2) { // if next2 > next1
+        ast_node_t* left = parse_expr_until(file, next2);
+        set_ptr(next2+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_NE;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //LT,LTE,GT and GTE checks
+    next1 = get_next_us(TOKEN_TYPE_RANGLE, until);
+    next2 = get_next_us(TOKEN_TYPE_LANGLE, until);
+    token_t* next3 = get_next_us(TOKEN_TYPE_LTE, until);
+    token_t* next4 = get_next_us(TOKEN_TYPE_GTE, until);
+
+    if(next1 && next1 < next2 && next2 < next3 && next3 < next4) {
+        ast_node_t* left = parse_expr_until(file, next1);
+        set_ptr(next1+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_LT;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    } else if(next2 && next2 < next3 && next3 < next4) {
+        ast_node_t* left = parse_expr_until(file, next2);
+        set_ptr(next2+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_GT;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    } else if(next3 && next3 < next4) {
+        ast_node_t* left = parse_expr_until(file, next3);
+        set_ptr(next3+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_LTE;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    } else if(next4) {
+        ast_node_t* left = parse_expr_until(file, next4);
+        set_ptr(next4+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_GTE;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //additions and subtractions
+    next1 = get_next_us(TOKEN_TYPE_PLUS, until);
+    next2 = get_next_us(TOKEN_TYPE_MINUS, until);
+
+    if(next1 && (next1 < next2 || !next2)) {
+        ast_node_t* left = parse_expr_until(file, next1);
+        set_ptr(next1+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_ADD;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    } else if(next2) { // if next2 > next1
+        ast_node_t* left = parse_expr_until(file, next2);
+        set_ptr(next2+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        if(left && right){
+            node->type = AST_TYPE_SUB;
+            node->binary.left = left;
+            node->binary.right = right;
+
+            goto done; //fuck you
+        }
+    }
+
+    //multiplications, divisions and remainders
+    next1 = get_next_us(TOKEN_TYPE_STAR, until);
+    next2 = get_next_us(TOKEN_TYPE_SLASH, until);
+    next3 = get_next_us(TOKEN_TYPE_MODULO, until);
+
+    if(next1 && next1 < next2 && next2 < next3 ) {
+        ast_node_t* left = parse_expr_until(file, next1);
+        set_ptr(next1+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_MUL;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    } else if(next2 && next2 < next3) {
+        ast_node_t* left = parse_expr_until(file, next2);
+        set_ptr(next2+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_DIV;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    } else if(next3) {
+        ast_node_t* left = parse_expr_until(file, next3);
+        set_ptr(next3+1);
+        ast_node_t* right = parse_expr_until(file, until);
+        set_ptr(until);
+
+        node->type = AST_TYPE_MOD;
+        node->binary.left = left;
+        node->binary.right = right;
+
+        goto done; //fuck you
+    }
+
+    //unary minuses and nots
+    set_ptr(until);
+    next1 = get_prev_us(TOKEN_TYPE_MINUS, until);
+    next2 = get_prev_us(TOKEN_TYPE_BANG, until);
+
+    if(next1 && next1 < next2) {
+        ast_node_t* left = parse_expr_until(file, next1);
+
+        node->type = AST_TYPE_UN_MINUS;
+        node->unary.expr = left;
+
+        goto done; //fuck you
+    } else if(next2) { // if next2 > next1
+        ast_node_t* left = parse_expr_until(file, next2);
+
+        node->type = AST_TYPE_NOT;
+        node->unary.expr = left;
+
+        goto done; //fuck you
+    }
+    set_ptr(old);
 
     //primary expr
     if((next = expect(TOKEN_TYPE_LPAREN))) {
@@ -241,6 +505,8 @@ ast_node_t* parse_expr_until(src_file_t* file,UNUSED token_t* until){
         }
         consume(1); //rparen
     }
+
+    done:
 
     if(node->type == AST_TYPE_PROGRAM){ //unchanged
         free(node);
@@ -469,9 +735,16 @@ void print_ast_node(ast_node_t* node,size_t indent){
             printf("%sIdentifier \"%s\"\n",indent_str,node->ident.name);
             free(indent_str);
             break;
+        
+        case AST_TYPE_ADD:
+            printf("%sAddition\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
 
         default:
-            printf("%sUnknown\n",indent_str);
+            printf("%sUnknown '%u'\n",indent_str,node->type);
             free(indent_str);
     }
 }
@@ -505,6 +778,27 @@ void free_ast_node(ast_node_t* node){
             free(node->func_call.args->nodes);
             free(node->func_call.args);
             free_ast_node(node->func_call.fp);
+            break;
+
+        case AST_TYPE_ADD:  //fallthru
+        case AST_TYPE_SUB:  //fallthru
+        case AST_TYPE_MUL:  //fallthru
+        case AST_TYPE_DIV:  //fallthru
+        case AST_TYPE_MOD:  //fallthru
+        case AST_TYPE_AND:  //fallthru
+        case AST_TYPE_OR:   //fallthru
+        case AST_TYPE_XOR:  //fallthru
+        case AST_TYPE_LAND: //fallthru
+        case AST_TYPE_LOR:  //fallthru
+        case AST_TYPE_EQ:   //fallthru
+        case AST_TYPE_NE:   //fallthru
+        case AST_TYPE_GT:   //fallthru
+        case AST_TYPE_LT:   //fallthru
+        case AST_TYPE_GTE:  //fallthru
+        case AST_TYPE_LTE:  //fallthru
+        case AST_TYPE_ASS:  //fallthru
+            free_ast_node(node->binary.left);
+            free_ast_node(node->binary.right);
             break;
 
         default:
