@@ -170,12 +170,13 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
     ast_node_t* node = malloc(sizeof(ast_node_t));
     token_t* next;
 
-    node->type = AST_TYPE_PROGRAM; //impossible to get other than not hitting any primary-expr
+    node->type = AST_TYPE_PROGRAM; //impossible to get other than not hitting any case
 
     //assignment
     token_t* old = peek(0);
     set_ptr(until);
     if((next = get_prev_us(TOKEN_TYPE_EQUAL, old))) {
+        print_token(next);
         set_ptr(old);
         ast_node_t* left = parse_expr_until(file, next);
         set_ptr(next+1);
@@ -415,21 +416,23 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
 
     //unary minuses and nots
     set_ptr(until);
-    next1 = get_prev_us(TOKEN_TYPE_MINUS, until);
-    next2 = get_prev_us(TOKEN_TYPE_BANG, until);
+    next1 = get_prev_us(TOKEN_TYPE_MINUS, old-1);
+    next2 = get_prev_us(TOKEN_TYPE_BANG, old-1);
 
-    if(next1 && next1 < next2) {
-        ast_node_t* left = parse_expr_until(file, next1);
+    if(next1 && (next1 > next2 || !next2)) {
+        set_ptr(next1+1);
+        ast_node_t* right = parse_expr_until(file, until);
 
         node->type = AST_TYPE_UN_MINUS;
-        node->unary.expr = left;
+        node->unary.expr = right;
 
         goto done; //fuck you
-    } else if(next2) { // if next2 > next1
-        ast_node_t* left = parse_expr_until(file, next2);
+    } else if(next2) { // if next2 < next1
+        set_ptr(next2+1);
+        ast_node_t* right = parse_expr_until(file, until);
 
         node->type = AST_TYPE_NOT;
-        node->unary.expr = left;
+        node->unary.expr = right;
 
         goto done; //fuck you
     }
@@ -468,7 +471,6 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
     }
 
     while ((next = expect(TOKEN_TYPE_LPAREN))){
-        printf("a\n");
 
         if(node->type == AST_TYPE_PROGRAM){ //unchanged
             throw_code_issue(*file, COMP_ERR_DANGLING_POSTFIX,
@@ -486,7 +488,6 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
         token_t* rparen = get_next_us(TOKEN_TYPE_RPAREN, until); //HACK: doesnt account for parenthesis depth
 
         do {
-            printf("b\n");
             consume(1); //lparen or comma
             token_t* next_comma = get_next_us(TOKEN_TYPE_COMMA, rparen);
 
@@ -517,9 +518,111 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
 }
 
 //TODO: statement parsing
-ast_node_list_t* parse_stmts_until(UNUSED src_file_t* file,UNUSED token_t* until){
-    consume(1);
-    return NULL;
+ast_node_t* parse_stmt(UNUSED src_file_t* file){
+    ast_node_t* node = NULL;
+    token_t* next = peek(0);
+
+    if(is_qualifier(next) || is_basetype(next)){
+        node = malloc(sizeof(ast_node_t));
+        node->type = AST_TYPE_DECL;
+
+        decl_stem_t stem = parse_decl_stem(file);
+
+        if(!stem.name) {
+            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                                             *peek(0), true); //TODO: non-fatal errors
+        }
+
+        node->decl.type = stem.type;
+        node->decl.name = stem.name;
+
+        token_t* next = peek(0);
+
+        if(!next || next->type == TOKEN_TYPE_TERMINATOR) {
+            throw_code_issue(*file, COMP_ERR_DECLARATION_CUT_OFF,
+                                     *peek(0), true); //TODO: non-fatal errors
+        }
+
+        if(next->type == TOKEN_TYPE_SEMI){
+            consume(1);
+            node->decl.starting_value = NULL;
+        } else if(next->type == TOKEN_TYPE_EQUAL){
+            consume(1);
+            node->decl.starting_value = parse_expr_until(file,get_next(TOKEN_TYPE_SEMI, TOKEN_TYPE_NEWLINE));
+        }
+    } else if(is_stmt_kw(next)){
+        uint8_t kw = 0;
+        for(uint8_t i = 0; i < 3; i++){
+            if(strcmp((char*)next->value,stmt_kws[i]) == 0){
+                kw = i;
+            }
+        }
+        consume(1); // keyword
+        switch (kw){
+            case 0: //if
+                if(!expect_d(TOKEN_TYPE_LPAREN)){
+                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                                             *peek(0), true); //TODO: non-fatal errors
+                }
+                node = malloc(sizeof(ast_node_t));
+                node->type = AST_TYPE_IF;
+                if(!(node->if_stmt.cond = parse_expr_until(file,get_next(TOKEN_TYPE_RPAREN, TOKEN_TYPE_SEMI)))) //TODO: paren depth aware
+                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                                         *peek(0), true); //TODO: non-fatal errors
+                if(!(node->if_stmt.body = parse_stmt(file)))
+                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                                         *peek(0), true); //TODO: non-fatal errors
+                break;
+            case 1: //goto
+                if(!(next = expect_d(TOKEN_TYPE_STRING))){
+                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                                             *peek(0), true); //TODO: non-fatal errors
+                }
+                node = malloc(sizeof(ast_node_t));
+                node->type = AST_TYPE_GOTO;
+                node->goto_stmt.label = (char*)next->value;
+                break;
+            case 2: // return
+                node = malloc(sizeof(ast_node_t));
+                node->type = AST_TYPE_RETURN;
+                if(!(node->return_stmt.val = parse_expr_until(file,get_next(TOKEN_TYPE_SEMI, TOKEN_TYPE_TERMINATOR)))) //TODO: paren depth aware
+                   throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                                        *peek(0), true); //TODO: non-fatal errors
+                break;
+        }
+    } else if(next->type == TOKEN_TYPE_LCURLY){
+        consume(1); //lcurly
+        node = malloc(sizeof(ast_node_t));
+        node->type = AST_TYPE_BLOCK;
+        node->block.stmts = create_ast_node_list();
+
+        while(!expect(TOKEN_TYPE_RCURLY)){
+            ast_node_t* stmt = parse_stmt(file);
+            if(!stmt){
+                throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                                       *peek(0), true); //TODO: non-fatal errors
+            }
+            append_node(node->block.stmts, stmt);
+        }
+
+        consume(1); //rcurly
+    } else {
+        node = malloc(sizeof(ast_node_t));
+        node->type = AST_TYPE_EVAL;
+        node->eval.expr = parse_expr_until(file,get_next(TOKEN_TYPE_SEMI, TOKEN_TYPE_TERMINATOR));
+        if(!node->eval.expr){
+            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                                       *peek(0), true); //TODO: non-fatal errors
+        }
+    }
+
+    if(!expect_d(TOKEN_TYPE_SEMI)){
+        print_token(peek(0));
+        throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
+                                         *next, false); //TODO: non-fatal errors
+    }
+
+    return node;
 }
 
 ast_node_t* parse_programism(src_file_t* file){
@@ -588,11 +691,13 @@ ast_node_t* parse_programism(src_file_t* file){
 
         if(expect(TOKEN_TYPE_SEMI)){
             consume(1);
+            node->func_decl.body = NULL;
         } else {
-            throw_code_issue(*file, COMP_ERR_UNIMPLEMENTED, // no expression parsing (yet)
-                                             *peek(0), false); //TODO: non-fatal errors
-            free_ast_node(node);
-            return NULL;
+            if(!(node->func_decl.body = parse_stmt(file))){
+                free_ast_node(node);
+                return NULL;
+            }
+
         }
     } else{
         throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
@@ -695,10 +800,14 @@ void print_ast_node(ast_node_t* node,size_t indent){
             print_storage_type(node->decl.type, indent + INDENT_WIDTH*2);
             printf("%s  |->Name: \"%s\"\n",indent_str,node->func_decl.name);
             printf("%s  |->Arguments: \n",indent_str);
-            free(indent_str); // no need for it after this
             for(size_t i = 0;i < node->func_decl.args->count;i++){
                 print_ast_node(node->func_decl.args->nodes[i], indent + INDENT_WIDTH*2);
             }
+            if(node->func_decl.body){
+                printf("%s  \\->Body: \n",indent_str);
+                print_ast_node(node->func_decl.body, indent + INDENT_WIDTH*2);
+            }
+            free(indent_str); // no need for it after this
             break;
 
         case AST_TYPE_FUNC_CALL:
@@ -735,7 +844,16 @@ void print_ast_node(ast_node_t* node,size_t indent){
             printf("%sIdentifier \"%s\"\n",indent_str,node->ident.name);
             free(indent_str);
             break;
-        
+       
+        case AST_TYPE_RETURN:
+            printf("%sReturn statement\n",indent_str);
+            if(node->return_stmt.val){
+                printf("%s  \\->Value: \n",indent_str);
+                print_ast_node(node->return_stmt.val, indent + INDENT_WIDTH*2);
+            } 
+            free(indent_str);
+            break;
+
         case AST_TYPE_ADD:
             printf("%sAddition\n",indent_str);
             print_ast_node(node->binary.left, indent + INDENT_WIDTH);
