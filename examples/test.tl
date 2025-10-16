@@ -14,7 +14,7 @@ int sub(int a, int b) return a - b;
 
 
 int main(int argc, char** argv) {
-    char* d = "the condition that distinguishes organisms from inorganic objects and dead organisms, being manifested by growth through metabolism, reproduction, and the power of adaptation to environment through changes originating internally."
+    char* d = "the condition that distinguishes organisms from inorganic objects and dead organisms, being manifested by growth through metabolism, reproduction, and the power of adaptation to environment through changes originating internally.";
     long unsigned int e = 0xFFFFFFFFFFFFFFFF ^ 0x0000000000000002;
     long int f = -4;
 
