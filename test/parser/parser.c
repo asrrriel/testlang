@@ -167,7 +167,8 @@ decl_stem_t parse_decl_stem(src_file_t* file){
 
 struct __perser_op {
     enum {
-        OPT_UNARY,
+        OPT_UNARY_LEFT,
+        OPT_UNARY_RIGHT,
         OPT_BINARY,
         OPT_TERNARY
     } type;
@@ -189,22 +190,21 @@ struct __perser_op operators[] = {
     {OPT_BINARY, false, TOKEN_TYPE_EQEQ,AST_TYPE_EQ,6},
     {OPT_BINARY, false, TOKEN_TYPE_NE,AST_TYPE_NE,6},
 
-    
     {OPT_BINARY, false, TOKEN_TYPE_RANGLE,AST_TYPE_LT,7},
     {OPT_BINARY, false, TOKEN_TYPE_LANGLE,AST_TYPE_GT,7},
     {OPT_BINARY, false, TOKEN_TYPE_LTE,AST_TYPE_LTE,7},
     {OPT_BINARY, false, TOKEN_TYPE_GTE,AST_TYPE_GTE,7},
-    
+
     {OPT_BINARY, false, TOKEN_TYPE_PLUS,AST_TYPE_ADD,8},
     {OPT_BINARY, false, TOKEN_TYPE_MINUS,AST_TYPE_SUB,8},
 
-    
+
     {OPT_BINARY, false, TOKEN_TYPE_STAR,AST_TYPE_MUL,9},
     {OPT_BINARY, false, TOKEN_TYPE_SLASH,AST_TYPE_DIV,9},
     {OPT_BINARY, false, TOKEN_TYPE_MODULO,AST_TYPE_MOD,9},
 
-    {OPT_UNARY, true, TOKEN_TYPE_MINUS,AST_TYPE_UN_MINUS,10},
-    {OPT_UNARY, true, TOKEN_TYPE_BANG,AST_TYPE_NOT,10},
+    {OPT_UNARY_LEFT, true, TOKEN_TYPE_MINUS,AST_TYPE_UN_MINUS,10},
+    {OPT_UNARY_LEFT, true, TOKEN_TYPE_BANG,AST_TYPE_NOT,10},
     
 };
 
@@ -212,6 +212,7 @@ struct __perser_op operators[] = {
 ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
     ast_node_t* node = malloc(sizeof(ast_node_t));
     token_t* next = NULL;
+    token_t* saved_next = NULL;
     ast_node_t* left = NULL;
     ast_node_t* mid = NULL;
     ast_node_t* right = NULL;
@@ -228,27 +229,46 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
         left = mid = right = NULL; // zero out all of them
 
         if(op.right_assoc) {
-            set_ptr(until);
-            next = get_prev_us(op.search_for, old);
+            set_ptr(until-1); // be consistent with the behaviour of not including until
+            next = get_prev_uspa(op.search_for, old-1);
             set_ptr(old);
         } else {
-            next = get_next_us(op.search_for, until);
+            next = get_next_uspa(op.search_for, until);
         }
 
-        if (!next){
+
+        if ((saved_left || saved_mid || saved_right)
+                && (!next || (op.right_assoc ? saved_next < next : saved_next > next))) {
+            //substitute ourselves for the last one
+            op = operators[i-1];
+            left  = saved_left;
+            mid   = saved_mid;
+            right = saved_right;
             goto checkout;
         }
 
+        if (!next){
+            goto next; //so we actually rewind
+        }
+
         switch (op.type) {
-            case OPT_UNARY:
-                mid = parse_expr_until(file, next); //TODO: take parentheses into account
-                if(!mid) goto checkout;
+            case OPT_UNARY_LEFT:
+                set_ptr(next+1);
+                mid = parse_expr_until(file, until);
+
+                if(!mid) goto next; //so we actually rewind
+                break;
+            case OPT_UNARY_RIGHT:
+                mid = parse_expr_until(file, next);
+
+                if(!mid) goto next; //so we actually rewind
                 break;
             case OPT_BINARY:
-                left = parse_expr_until(file, next-1); //TODO: take parentheses into account
+                left = parse_expr_until(file, next);
                 set_ptr(next+1);
-                right = parse_expr_until(file, until); //TODO: take parentheses into account
-                if(!left || !right) goto checkout;
+                right = parse_expr_until(file, until);
+
+                if(!left || !right) goto next; //so we actually rewind
                 break;
             case OPT_TERNARY:
                 throw_code_issue(*file, COMP_ERR_UNIMPLEMENTED, // TODO: ecapsulation
@@ -257,39 +277,20 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
                 return NULL;
         }
 
-
-        if (operators[i+1].priority == op.priority) {
-            set_ptr(old); // it's rewind time
+        if (i+1 != sizeof(operators) / sizeof(operators[0]) && operators[i+1].priority == op.priority) {
+            saved_next = next;
             saved_left = left;
             saved_mid = mid;
             saved_right = right;
+            set_ptr(old); // it's rewind time
             continue;
         }
 
         checkout:
 
-        if ((saved_left || saved_mid || saved_right)) {
-            if (op.right_assoc) { // beleive me I considered other options to write this condition out but it's the cleanest this way
-                if (saved_left < left && saved_mid < mid && saved_right < right){
-                    goto nope;
-                }
-            } else {
-                if (saved_left > left && saved_mid > mid && saved_right > right){
-                    goto nope;
-                }
-            }
-
-            //substitute ourselves for the last one
-            op = operators[i-1];
-            left  = saved_left;
-            mid   = saved_mid;
-            right = saved_right;
-
-            nope:
-        }
-
         switch (op.type) {
-            case OPT_UNARY:
+            case OPT_UNARY_LEFT: //fallthru
+            case OPT_UNARY_RIGHT:
                 if (mid) {
                     node->type = op.node_type;
                     node->unary.expr = mid;
@@ -314,38 +315,63 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
                 }
                 break;
         }
+
+        next: //here cuz we have to rewind
+            set_ptr(old); // it's rewind time
     }
 
     //primary expr
     if((next = expect(TOKEN_TYPE_LPAREN))) {
-        throw_code_issue(*file, COMP_ERR_UNIMPLEMENTED, // TODO: ecapsulation
-                                             *peek(0), false); //TODO: non-fatal errors
-        free_ast_node(node);
-        return NULL;
-    } else if((next = expect(TOKEN_TYPE_CHRLIT))){
-        node->type = AST_TYPE_CHRLIT;
-        if(!next->value){
-             throw_code_issue(*file, COMP_ERR_EMPTY_CHRLIT,
-                                 *next, true); //TODO: non-fatal errors
+        token_t* rparen = get_next_uspa(TOKEN_TYPE_RPAREN, until+1);
+
+        consume(1); // lparen
+
+        if (!rparen) {
+            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE,
+                                             *next, true); //TODO: non-fatal errors
         }
+
+        ast_node_t* newnode = parse_expr_until(file, rparen);
+
+        if (!newnode){
+            throw_code_issue(*file, COMP_ERR_EXPECTED_EXPR,
+                                             *peek(0), true); //TODO: non-fatal errors
+            free_ast_node(node);
+            return NULL;
+        }
+
+        node = newnode;
+
+    } else if((next = expect(TOKEN_TYPE_CHRLIT))){
+        if(!next->value){
+            throw_code_issue(*file, COMP_ERR_EMPTY_CHRLIT,
+                *next, true); //TODO: non-fatal errors
+        }
+
         if(strlen((char*)next->value) > 1){
             throw_code_issue(*file, COMP_ERR_MULTIBYTE_CHRLIT,
-                                 *next, true); //TODO: non-fatal errors
+                *next, true); //TODO: non-fatal errors
         }
+
+        node->type = AST_TYPE_CHRLIT;
         node->chrlit.value = ((char*)next->value)[0];
-        consume(1);
+
+        consume(1); //chrlit
     } else if((next = expect(TOKEN_TYPE_STRING)) && isdigit(((char*)next->value)[0])){ 
         node->type = AST_TYPE_INTLIT;
         node->intlit.value = (char*)next->value;
-        consume(1);
+
+        consume(1); // string
     } else if((next = expect(TOKEN_TYPE_STRING))){ 
         node->type = AST_TYPE_IDENT;
         node->ident.name = (char*)next->value;
-        consume(1);
+
+        consume(1); //string
     } else if((next = expect(TOKEN_TYPE_STRLIT))){
         node->type = AST_TYPE_STRLIT;
         node->intlit.value = (char*)next->value;
-        consume(1);
+
+        consume(1); //strlit
     }
 
     //postfix expr
@@ -358,6 +384,11 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
         }
 
         ast_node_t* newnode = malloc(sizeof(ast_node_t));
+
+        if (!newnode){
+            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE,
+                                             *peek(0), true);
+        }
 
         newnode->type = AST_TYPE_FUNC_CALL;
         newnode->func_call.fp = node;
@@ -404,7 +435,6 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
         return NULL;
     }
 
-
     set_ptr(until); //make the pointer position be predictable
     return node;
 }
@@ -421,7 +451,7 @@ ast_node_t* parse_stmt(UNUSED src_file_t* file){
         decl_stem_t stem = parse_decl_stem(file);
 
         if(!stem.name) {
-            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+            throw_code_issue(*file, COMP_ERR_DECLARATION_CUT_OFF,
                                              *peek(0), true); //TODO: non-fatal errors
         }
 
@@ -440,7 +470,7 @@ ast_node_t* parse_stmt(UNUSED src_file_t* file){
             node->decl.starting_value = NULL;
         } else if(next->type == TOKEN_TYPE_EQUAL){
             consume(1);
-            node->decl.starting_value = parse_expr_until(file,get_next(TOKEN_TYPE_SEMI, TOKEN_TYPE_NEWLINE));
+            node->decl.starting_value = parse_expr_until(file,get_next_pa(TOKEN_TYPE_SEMI, TOKEN_TYPE_NEWLINE));
         }
     } else if(is_stmt_kw(next)){
         uint8_t kw = 0;
@@ -452,22 +482,41 @@ ast_node_t* parse_stmt(UNUSED src_file_t* file){
         consume(1); // keyword
         switch (kw){
             case 0: //if
-                if(!expect_d(TOKEN_TYPE_LPAREN)){
-                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                if(!expect(TOKEN_TYPE_LPAREN)){
+                    throw_code_issue(*file, COMP_ERR_MISSING_LPAREN, 
                                              *peek(0), true); //TODO: non-fatal errors
                 }
+                token_t* rparen = get_next_pa(TOKEN_TYPE_RPAREN, TOKEN_TYPE_SEMI);
+
+                if (!rparen) {
+                    throw_code_issue(*file, COMP_ERR_MISSING_RPAREN, 
+                                             *peek(0), true); //TODO: non-fatal errors
+                }
+
+                consume(1); //lparen
+
                 node = malloc(sizeof(ast_node_t));
                 node->type = AST_TYPE_IF;
-                if(!(node->if_stmt.cond = parse_expr_until(file,get_next(TOKEN_TYPE_RPAREN, TOKEN_TYPE_SEMI)))) //TODO: paren depth aware
-                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+
+                if(!(node->if_stmt.cond = parse_expr_until(file,rparen))){
+                    throw_code_issue(*file, COMP_ERR_EXPECTED_EXPR, 
                                          *peek(0), true); //TODO: non-fatal errors
-                if(!(node->if_stmt.body = parse_stmt(file)))
-                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                }
+
+                if(!expect_d(TOKEN_TYPE_RPAREN)){
+                    throw_code_issue(*file, COMP_ERR_MISSING_RPAREN, 
+                                             *peek(0), true); //TODO: non-fatal errors
+                }
+
+                if(!(node->if_stmt.body = parse_stmt(file))){
+                    throw_code_issue(*file, COMP_ERR_EXPECTED_STMT, 
                                          *peek(0), true); //TODO: non-fatal errors
-                break;
+                }
+
+                return node; //return early to dodge the semicolon check
             case 1: //goto
                 if(!(next = expect_d(TOKEN_TYPE_STRING))){
-                    throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                    throw_code_issue(*file, COMP_ERR_EXPECTED_IDENT, 
                                              *peek(0), true); //TODO: non-fatal errors
                 }
                 node = malloc(sizeof(ast_node_t));
@@ -477,8 +526,8 @@ ast_node_t* parse_stmt(UNUSED src_file_t* file){
             case 2: // return
                 node = malloc(sizeof(ast_node_t));
                 node->type = AST_TYPE_RETURN;
-                if(!(node->return_stmt.val = parse_expr_until(file,get_next(TOKEN_TYPE_SEMI, TOKEN_TYPE_TERMINATOR)))) //TODO: paren depth aware
-                   throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                if(!(node->return_stmt.val = parse_expr_until(file,get_next_pa(TOKEN_TYPE_SEMI, TOKEN_TYPE_TERMINATOR))))
+                   throw_code_issue(*file, COMP_ERR_EXPECTED_STMT,
                                         *peek(0), true); //TODO: non-fatal errors
                 break;
         }
@@ -491,25 +540,30 @@ ast_node_t* parse_stmt(UNUSED src_file_t* file){
         while(!expect(TOKEN_TYPE_RCURLY)){
             ast_node_t* stmt = parse_stmt(file);
             if(!stmt){
-                throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+                throw_code_issue(*file, COMP_ERR_EXPECTED_STMT,
                                        *peek(0), true); //TODO: non-fatal errors
             }
             append_node(node->block.stmts, stmt);
         }
 
-        consume(1); //rcurly
+        if (!expect_d(TOKEN_TYPE_RCURLY)) {
+            throw_code_issue(*file, COMP_ERR_MISSING_RPAREN, //TODO: custom issue for this
+                                       *peek(0), true); //TODO: non-fatal errors
+        }
+
+        return node; //return early to dodge the semicolon check
+
     } else {
         node = malloc(sizeof(ast_node_t));
         node->type = AST_TYPE_EVAL;
         node->eval.expr = parse_expr_until(file,get_next(TOKEN_TYPE_SEMI, TOKEN_TYPE_TERMINATOR));
         if(!node->eval.expr){
-            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE, //TODO: special error for this
+            throw_code_issue(*file, COMP_ERR_EXPECTED_EXPR,
                                        *peek(0), true); //TODO: non-fatal errors
         }
     }
 
     if(!expect_d(TOKEN_TYPE_SEMI)){
-        print_token(peek(0));
         throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
                                          *next, false); //TODO: non-fatal errors
     }
@@ -518,6 +572,11 @@ ast_node_t* parse_stmt(UNUSED src_file_t* file){
 }
 
 ast_node_t* parse_programism(src_file_t* file){
+
+    if (peek(0)->type == TOKEN_TYPE_TERMINATOR){
+        return NULL;
+    }
+
     ast_node_t* node = malloc(sizeof(ast_node_t));
     decl_stem_t stem = parse_decl_stem(file);
 
@@ -593,7 +652,7 @@ ast_node_t* parse_programism(src_file_t* file){
         }
     } else{
         throw_code_issue(*file, COMP_ERR_MISSING_SEMICOLON,
-                                 *next, true); //TODO: non-fatal errors
+                                 *peek(0), true); //TODO: non-fatal errors
     }
 
     return node;
@@ -712,6 +771,19 @@ void print_ast_node(ast_node_t* node,size_t indent){
                 print_ast_node(node->func_call.args->nodes[i], indent + INDENT_WIDTH*2);
             }
             break;
+
+        case AST_TYPE_BLOCK:
+            printf("%sBlock:\n",indent_str);
+            for(size_t i = 0;i < node->block.stmts->count;i++){
+                print_ast_node(node->block.stmts->nodes[i], indent + INDENT_WIDTH);
+            }
+            break;
+        
+        case AST_TYPE_EVAL:
+            printf("%sEval:\n",indent_str);
+            print_ast_node(node->eval.expr, indent + INDENT_WIDTH);
+            break;
+
         case AST_TYPE_CHRLIT:
             printf("%sCharacter literal '%c'\n",indent_str,node->chrlit.value);
             free(indent_str);
@@ -736,7 +808,16 @@ void print_ast_node(ast_node_t* node,size_t indent){
             printf("%sIdentifier \"%s\"\n",indent_str,node->ident.name);
             free(indent_str);
             break;
-       
+
+        case AST_TYPE_IF:
+            printf("%sIf statement\n",indent_str);
+            printf("%s  |->Condition: \n",indent_str);
+            print_ast_node(node->if_stmt.cond, indent + INDENT_WIDTH*2);
+            printf("%s  \\->Body: \n",indent_str);
+            print_ast_node(node->if_stmt.body, indent + INDENT_WIDTH*2);
+            free(indent_str);
+            break;
+
         case AST_TYPE_RETURN:
             printf("%sReturn statement\n",indent_str);
             if(node->return_stmt.val){
@@ -746,12 +827,143 @@ void print_ast_node(ast_node_t* node,size_t indent){
             free(indent_str);
             break;
 
+        case AST_TYPE_GOTO:
+            printf("%sGoto statement\n",indent_str);
+            printf("%s  \\->label: %s\n",indent_str,node->goto_stmt.label);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_ASS:
+            printf("%sAssignment:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
         case AST_TYPE_ADD:
             printf("%sAddition\n",indent_str);
             print_ast_node(node->binary.left, indent + INDENT_WIDTH);
             print_ast_node(node->binary.right, indent + INDENT_WIDTH);
             free(indent_str);
             break;
+
+        case AST_TYPE_SUB:
+            printf("%sSubtraction\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_AND:
+            printf("%sBitwise and:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_LAND:
+            printf("%sLogical and:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_OR:
+            printf("%sBitwise or:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_LOR:
+            printf("%sLogical or:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_XOR:
+            printf("%sExclusive OR:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+        
+        case AST_TYPE_EQ:
+            printf("%sEq check:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_NE:
+            printf("%sNONequalty check:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_GT:
+            printf("%sGreater than:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_LT:
+            printf("%sLess than:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_LTE:
+            printf("%sLess than or equal:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_GTE:
+            printf("%sGreater than or equal:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_MUL:
+            printf("%sMultiplication:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_DIV:
+            printf("%sDivision:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_MOD:
+            printf("%sModulo:\n",indent_str);
+            print_ast_node(node->binary.left, indent + INDENT_WIDTH);
+            print_ast_node(node->binary.right, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_UN_MINUS:
+            printf("%sUnary minus:\n",indent_str);
+            print_ast_node(node->unary.expr, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
+        case AST_TYPE_NOT:
+            printf("%sNot:\n",indent_str);
+            print_ast_node(node->unary.expr, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
 
         default:
             printf("%sUnknown '%u'\n",indent_str,node->type);
@@ -780,7 +992,12 @@ void free_ast_node(ast_node_t* node){
             free(node->func_decl.args->nodes);
             free(node->func_decl.args);
             break;
-        
+
+        case AST_TYPE_DECL:
+            //name owned by the token
+            free_ast_node(node->decl.starting_value);
+            break;
+
         case AST_TYPE_FUNC_CALL:
             for(size_t i = 0;i < node->func_call.args->count;i++){
                 free_ast_node(node->func_call.args->nodes[i]);
@@ -788,6 +1005,50 @@ void free_ast_node(ast_node_t* node){
             free(node->func_call.args->nodes);
             free(node->func_call.args);
             free_ast_node(node->func_call.fp);
+            break;
+
+        case AST_TYPE_BLOCK:
+            for(size_t i = 0;i < node->block.stmts->count;i++){
+                free_ast_node(node->block.stmts->nodes[i]);
+            }
+            free(node->block.stmts->nodes);
+            free(node->block.stmts);
+            break;
+
+        case AST_TYPE_LABEL:
+            free(node->label.name);
+            break;
+
+        case AST_TYPE_STRLIT:
+            //value owned by the token
+            break;
+
+        case AST_TYPE_IF:
+            free_ast_node(node->if_stmt.cond);
+            free_ast_node(node->if_stmt.body);
+            break;
+
+        case AST_TYPE_GOTO:
+            free(node->goto_stmt.label);
+            break;
+
+        case AST_TYPE_RETURN:
+            if (node->return_stmt.val){
+                free_ast_node(node->return_stmt.val);
+            }
+            break;
+
+        case AST_TYPE_EVAL:
+            free_ast_node(node->eval.expr);
+            break;
+
+        case AST_TYPE_IDENT:
+            free(node->ident.name);
+            break;
+
+        case AST_TYPE_NOT:
+        case AST_TYPE_UN_MINUS:
+            free_ast_node(node->unary.expr);
             break;
 
         case AST_TYPE_ADD:  //fallthru
@@ -810,8 +1071,17 @@ void free_ast_node(ast_node_t* node){
             free_ast_node(node->binary.left);
             free_ast_node(node->binary.right);
             break;
+        
+        case AST_TYPE_TERNARY_COND:
+            free_ast_node(node->ternary.cond);
+            free_ast_node(node->ternary.val_false);
+            free_ast_node(node->ternary.val_true);
+            break;
 
-        default:
+        case AST_TYPE_CHRLIT:
+        case AST_TYPE_INTLIT:
+        case AST_TYPE_DOTDOTDOT:
+        case AST_TYPE_EMPTY_STMT:
             break;
     }
     free(node);

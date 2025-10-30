@@ -40,7 +40,6 @@ typedef enum {
     AST_TYPE_EMPTY_STMT,
 
     //primary expressions
-    AST_TYPE_PAREN,
     AST_TYPE_INTLIT,
     AST_TYPE_CHRLIT,
     AST_TYPE_STRLIT,
@@ -123,10 +122,6 @@ struct __ast_node {
         struct {
             ast_node_t* val;
         } return_stmt;
-
-        struct {
-            ast_node_t* expr;
-        } paren;
 
         struct {
             char* value; // we dont give a damn, UYB can sort it out for us

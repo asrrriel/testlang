@@ -13,10 +13,14 @@ token_t* expect(token_type_t type);
 token_t* expect_d(token_type_t type);
 
 token_t* get_next(token_type_t type,token_type_t until);
-token_t* get_prev(token_type_t type,token_type_t until);
+
+token_t* get_next_pa(token_type_t type,token_type_t until);
 
 token_t* get_next_us(token_type_t type,token_t* until);
 token_t* get_prev_us(token_type_t type,token_t* until);
+
+token_t* get_next_uspa(token_type_t type,token_t* until);
+token_t* get_prev_uspa(token_type_t type,token_t* until);
 
 void set_ptr(token_t* ptr);
 

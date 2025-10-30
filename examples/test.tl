@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
     printf("The meaning of life is: %s\n",d);
 
     f = (add(f + a,f - a) * 4) / 3;
-    e = !(f > 6) ? e & 0xEEEEEEEEEEEEEEEE : e % f;
+    e = e & 0xEEEEEEEEEEEEEEEE;
     e = e | 0x5634563457855784;
 
     f = f % 4;

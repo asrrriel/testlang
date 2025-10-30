@@ -16,10 +16,15 @@ static const char* issue_labels[] = {
     [COMP_ERR_DUPLICATE_QUALIFIER] = "Duplicate qualifier",
     [COMP_ERR_MISSING_SEMICOLON] = "Missing semicolon",
     [COMP_ERR_EXPECTED_ARG_LIST] = "Expected argument list",
-    [COMP_ERR_DECLARATION_CUT_OFF] = "Declaration cut off",
+    [COMP_ERR_DECLARATION_CUT_OFF] = "Incomplete declaration",
     [COMP_ERR_EMPTY_CHRLIT] = "Empty character literal",
     [COMP_ERR_MULTIBYTE_CHRLIT] = "Multibyte character doesn't fit in a standard char",
     [COMP_ERR_DANGLING_POSTFIX] = "Dangling postfix",
+    [COMP_ERR_MISSING_LPAREN] = "Missing opening parenthesis",
+    [COMP_ERR_MISSING_RPAREN] = "Missing closing parenthesis",
+    [COMP_ERR_EXPECTED_EXPR] = "Expected valid expression",
+    [COMP_ERR_EXPECTED_STMT] = "Expected valid statement",
+    [COMP_ERR_EXPECTED_IDENT] = "Expected identifier",
 };
 
 static const uint8_t issue_severities[] = {
@@ -35,6 +40,11 @@ static const uint8_t issue_severities[] = {
     [COMP_ERR_EMPTY_CHRLIT] = SEVERITY_ERR,
     [COMP_ERR_MULTIBYTE_CHRLIT] = SEVERITY_ERR,
     [COMP_ERR_DANGLING_POSTFIX] = SEVERITY_ERR,
+    [COMP_ERR_MISSING_LPAREN] = SEVERITY_ERR,
+    [COMP_ERR_MISSING_RPAREN] = SEVERITY_ERR,
+    [COMP_ERR_EXPECTED_EXPR] = SEVERITY_ERR,
+    [COMP_ERR_EXPECTED_STMT] = SEVERITY_ERR,
+    [COMP_ERR_EXPECTED_IDENT] = SEVERITY_ERR,
 };
 
 static const char* severity_labels[] = {

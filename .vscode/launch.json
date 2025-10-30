@@ -7,7 +7,10 @@
         "target": "./test/bin/test",
         "arguments": "examples/test.tl",
         "cwd": "${workspaceRoot}",
-        "valuesFormatting": "parseText"
+        "valuesFormatting": "parseText",
+        "env": {
+            "ASAN_OPTIONS": "detect_leaks=0"
+        }
     }
     ]
 }
