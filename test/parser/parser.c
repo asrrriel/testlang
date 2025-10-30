@@ -165,278 +165,156 @@ decl_stem_t parse_decl_stem(src_file_t* file){
     return toret;
 }
 
+struct __perser_op {
+    enum {
+        OPT_UNARY,
+        OPT_BINARY,
+        OPT_TERNARY
+    } type;
+    bool right_assoc;
+    token_type_t search_for;
+    ast_type_t node_type;
+    uint8_t priority;
+
+};
+
+struct __perser_op operators[] = {
+    {OPT_BINARY, true, TOKEN_TYPE_EQUAL,AST_TYPE_ASS,0},
+    {OPT_BINARY, false, TOKEN_TYPE_OROR,AST_TYPE_LOR,1},
+    {OPT_BINARY, false, TOKEN_TYPE_ANDAND,AST_TYPE_LAND,2},
+    {OPT_BINARY, false, TOKEN_TYPE_WALL,AST_TYPE_OR,3},
+    {OPT_BINARY, false, TOKEN_TYPE_CARET,AST_TYPE_XOR,4},
+    {OPT_BINARY, false, TOKEN_TYPE_AND,AST_TYPE_AND,5},
+
+    {OPT_BINARY, false, TOKEN_TYPE_EQEQ,AST_TYPE_EQ,6},
+    {OPT_BINARY, false, TOKEN_TYPE_NE,AST_TYPE_NE,6},
+
+    
+    {OPT_BINARY, false, TOKEN_TYPE_RANGLE,AST_TYPE_LT,7},
+    {OPT_BINARY, false, TOKEN_TYPE_LANGLE,AST_TYPE_GT,7},
+    {OPT_BINARY, false, TOKEN_TYPE_LTE,AST_TYPE_LTE,7},
+    {OPT_BINARY, false, TOKEN_TYPE_GTE,AST_TYPE_GTE,7},
+    
+    {OPT_BINARY, false, TOKEN_TYPE_PLUS,AST_TYPE_ADD,8},
+    {OPT_BINARY, false, TOKEN_TYPE_MINUS,AST_TYPE_SUB,8},
+
+    
+    {OPT_BINARY, false, TOKEN_TYPE_STAR,AST_TYPE_MUL,9},
+    {OPT_BINARY, false, TOKEN_TYPE_SLASH,AST_TYPE_DIV,9},
+    {OPT_BINARY, false, TOKEN_TYPE_MODULO,AST_TYPE_MOD,9},
+
+    {OPT_UNARY, true, TOKEN_TYPE_MINUS,AST_TYPE_UN_MINUS,10},
+    {OPT_UNARY, true, TOKEN_TYPE_BANG,AST_TYPE_NOT,10},
+    
+};
+
 //TODO: expression parsing
 ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
     ast_node_t* node = malloc(sizeof(ast_node_t));
-    token_t* next;
+    token_t* next = NULL;
+    ast_node_t* left = NULL;
+    ast_node_t* mid = NULL;
+    ast_node_t* right = NULL;
+    ast_node_t* saved_left = NULL;
+    ast_node_t* saved_mid = NULL;
+    ast_node_t* saved_right = NULL;
 
     node->type = AST_TYPE_PROGRAM; //impossible to get other than not hitting any case
 
-    //assignment
-    token_t* old = peek(0);
-    set_ptr(until);
-    if((next = get_prev_us(TOKEN_TYPE_EQUAL, old))) {
-        print_token(next);
-        set_ptr(old);
-        ast_node_t* left = parse_expr_until(file, next);
-        set_ptr(next+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
+    //unary, binary and ternary expr
+    for (uint8_t i = 0; i < sizeof(operators) / sizeof(operators[0]); i++){
+        struct __perser_op op = operators[i];
+        token_t* old = peek(0);
+        left = mid = right = NULL; // zero out all of them
+
+        if(op.right_assoc) {
+            set_ptr(until);
+            next = get_prev_us(op.search_for, old);
+            set_ptr(old);
+        } else {
+            next = get_next_us(op.search_for, until);
+        }
+
+        if (!next){
+            goto checkout;
+        }
+
+        switch (op.type) {
+            case OPT_UNARY:
+                mid = parse_expr_until(file, next); //TODO: take parentheses into account
+                if(!mid) goto checkout;
+                break;
+            case OPT_BINARY:
+                left = parse_expr_until(file, next-1); //TODO: take parentheses into account
+                set_ptr(next+1);
+                right = parse_expr_until(file, until); //TODO: take parentheses into account
+                if(!left || !right) goto checkout;
+                break;
+            case OPT_TERNARY:
+                throw_code_issue(*file, COMP_ERR_UNIMPLEMENTED, // TODO: ecapsulation
+                                             *peek(0), false); //TODO: non-fatal errors
+                free_ast_node(node);
+                return NULL;
+        }
 
 
-        node->type = AST_TYPE_ASS;
-        node->binary.left = left;
-        node->binary.right = right;
+        if (operators[i+1].priority == op.priority) {
+            set_ptr(old); // it's rewind time
+            saved_left = left;
+            saved_mid = mid;
+            saved_right = right;
+            continue;
+        }
 
-        goto done; //fuck you
-    }
+        checkout:
 
-    //TODO: ternary
+        if ((saved_left || saved_mid || saved_right)) {
+            if (op.right_assoc) { // beleive me I considered other options to write this condition out but it's the cleanest this way
+                if (saved_left < left && saved_mid < mid && saved_right < right){
+                    goto nope;
+                }
+            } else {
+                if (saved_left > left && saved_mid > mid && saved_right > right){
+                    goto nope;
+                }
+            }
 
-    //logical OR
-    set_ptr(old);
-    if((next = get_next_us(TOKEN_TYPE_OROR, until))) {
-        ast_node_t* left = parse_expr_until(file, next);
-        set_ptr(next+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
+            //substitute ourselves for the last one
+            op = operators[i-1];
+            left  = saved_left;
+            mid   = saved_mid;
+            right = saved_right;
 
-        node->type = AST_TYPE_LOR;
-        node->binary.left = left;
-        node->binary.right = right;
+            nope:
+        }
 
-        goto done; //fuck you
-    }
-
-    //logical AND
-    if((next = get_next_us(TOKEN_TYPE_ANDAND, until))) {
-        ast_node_t* left = parse_expr_until(file, next);
-        set_ptr(next+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_LAND;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    }
-
-    //bitwise OR
-    if((next = get_next_us(TOKEN_TYPE_WALL, until))) {
-        ast_node_t* left = parse_expr_until(file, next);
-        set_ptr(next+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_OR;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    }
-
-    //bitwise XOR
-    if((next = get_next_us(TOKEN_TYPE_CARET, until))) {
-        ast_node_t* left = parse_expr_until(file, next);
-        set_ptr(next+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_XOR;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    }
-
-    //bitwise AND
-    if((next = get_next_us(TOKEN_TYPE_AND, until))) {
-        ast_node_t* left = parse_expr_until(file, next);
-        set_ptr(next+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_AND;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    }
-
-    //equality and unequality checks
-    token_t* next1 = get_next_us(TOKEN_TYPE_EQEQ, until);
-    token_t* next2 = get_next_us(TOKEN_TYPE_NE, until);
-
-    if(next1 && next1 < next2) {
-        ast_node_t* left = parse_expr_until(file, next1);
-        set_ptr(next1+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_EQ;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    } else if(next2) { // if next2 > next1
-        ast_node_t* left = parse_expr_until(file, next2);
-        set_ptr(next2+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_NE;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    }
-
-    //LT,LTE,GT and GTE checks
-    next1 = get_next_us(TOKEN_TYPE_RANGLE, until);
-    next2 = get_next_us(TOKEN_TYPE_LANGLE, until);
-    token_t* next3 = get_next_us(TOKEN_TYPE_LTE, until);
-    token_t* next4 = get_next_us(TOKEN_TYPE_GTE, until);
-
-    if(next1 && next1 < next2 && next2 < next3 && next3 < next4) {
-        ast_node_t* left = parse_expr_until(file, next1);
-        set_ptr(next1+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_LT;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    } else if(next2 && next2 < next3 && next3 < next4) {
-        ast_node_t* left = parse_expr_until(file, next2);
-        set_ptr(next2+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_GT;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    } else if(next3 && next3 < next4) {
-        ast_node_t* left = parse_expr_until(file, next3);
-        set_ptr(next3+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_LTE;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    } else if(next4) {
-        ast_node_t* left = parse_expr_until(file, next4);
-        set_ptr(next4+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_GTE;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    }
-
-    //additions and subtractions
-    next1 = get_next_us(TOKEN_TYPE_PLUS, until);
-    next2 = get_next_us(TOKEN_TYPE_MINUS, until);
-
-    if(next1 && (next1 < next2 || !next2)) {
-        ast_node_t* left = parse_expr_until(file, next1);
-        set_ptr(next1+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_ADD;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    } else if(next2) { // if next2 > next1
-        ast_node_t* left = parse_expr_until(file, next2);
-        set_ptr(next2+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        if(left && right){
-            node->type = AST_TYPE_SUB;
-            node->binary.left = left;
-            node->binary.right = right;
-
-            goto done; //fuck you
+        switch (op.type) {
+            case OPT_UNARY:
+                if (mid) {
+                    node->type = op.node_type;
+                    node->unary.expr = mid;
+                    goto done;
+                }
+                break;
+            case OPT_BINARY:
+                if(left && right) {
+                    node->type = op.node_type;
+                    node->binary.left = left;
+                    node->binary.right = right;
+                    goto done;
+                }
+                break;
+            case OPT_TERNARY:
+                if(left && mid && right) {
+                    node->type = op.node_type;
+                    node->ternary.cond = left;
+                    node->ternary.val_true = left;
+                    node->ternary.val_false = right;
+                    goto done;
+                }
+                break;
         }
     }
-
-    //multiplications, divisions and remainders
-    next1 = get_next_us(TOKEN_TYPE_STAR, until);
-    next2 = get_next_us(TOKEN_TYPE_SLASH, until);
-    next3 = get_next_us(TOKEN_TYPE_MODULO, until);
-
-    if(next1 && next1 < next2 && next2 < next3 ) {
-        ast_node_t* left = parse_expr_until(file, next1);
-        set_ptr(next1+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_MUL;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    } else if(next2 && next2 < next3) {
-        ast_node_t* left = parse_expr_until(file, next2);
-        set_ptr(next2+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_DIV;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    } else if(next3) {
-        ast_node_t* left = parse_expr_until(file, next3);
-        set_ptr(next3+1);
-        ast_node_t* right = parse_expr_until(file, until);
-        set_ptr(until);
-
-        node->type = AST_TYPE_MOD;
-        node->binary.left = left;
-        node->binary.right = right;
-
-        goto done; //fuck you
-    }
-
-    //unary minuses and nots
-    set_ptr(until);
-    next1 = get_prev_us(TOKEN_TYPE_MINUS, old-1);
-    next2 = get_prev_us(TOKEN_TYPE_BANG, old-1);
-
-    if(next1 && (next1 > next2 || !next2)) {
-        set_ptr(next1+1);
-        ast_node_t* right = parse_expr_until(file, until);
-
-        node->type = AST_TYPE_UN_MINUS;
-        node->unary.expr = right;
-
-        goto done; //fuck you
-    } else if(next2) { // if next2 < next1
-        set_ptr(next2+1);
-        ast_node_t* right = parse_expr_until(file, until);
-
-        node->type = AST_TYPE_NOT;
-        node->unary.expr = right;
-
-        goto done; //fuck you
-    }
-    set_ptr(old);
 
     //primary expr
     if((next = expect(TOKEN_TYPE_LPAREN))) {
@@ -470,11 +348,13 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
         consume(1);
     }
 
-    while ((next = expect(TOKEN_TYPE_LPAREN))){
-
+    //postfix expr
+    if((next = expect(TOKEN_TYPE_LPAREN))){
         if(node->type == AST_TYPE_PROGRAM){ //unchanged
             throw_code_issue(*file, COMP_ERR_DANGLING_POSTFIX,
                                              *next, true); //TODO: non-fatal errors
+            free_ast_node(node);
+            return NULL;
         }
 
         ast_node_t* newnode = malloc(sizeof(ast_node_t));
@@ -487,11 +367,21 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
 
         token_t* rparen = get_next_us(TOKEN_TYPE_RPAREN, until); //HACK: doesnt account for parenthesis depth
 
+        if(!rparen) {
+            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE,
+                                             *peek(0), true); //TODO: non-fatal errors
+        }
+
         do {
             consume(1); //lparen or comma
             token_t* next_comma = get_next_us(TOKEN_TYPE_COMMA, rparen);
+            ast_node_t* arg = NULL;
 
-            ast_node_t* arg = parse_expr_until(file,next_comma);
+            if(next_comma){
+                arg = parse_expr_until(file,next_comma);
+            } else {
+                arg = parse_expr_until(file,rparen);
+            }
 
             if(arg){
                 append_node(newnode->func_call.args, arg);
@@ -500,9 +390,9 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
             next = peek(0);
         } while (next < rparen);
 
-        if(next != rparen){
+        if((next = peek(0)) != rparen){
             throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE,
-                                             *peek(0), true); //TODO: non-fatal errors
+                                             *next, true); //TODO: non-fatal errors
         }
         consume(1); //rparen
     }
@@ -514,6 +404,8 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
         return NULL;
     }
 
+
+    set_ptr(until); //make the pointer position be predictable
     return node;
 }
 
