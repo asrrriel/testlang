@@ -165,7 +165,7 @@ decl_stem_t parse_decl_stem(src_file_t* file){
     return toret;
 }
 
-struct __perser_op {
+struct __parser_op {
     enum {
         OPT_UNARY_LEFT,
         OPT_UNARY_RIGHT,
@@ -179,7 +179,7 @@ struct __perser_op {
 
 };
 
-struct __perser_op operators[] = {
+struct __parser_op operators[] = {
     {OPT_BINARY, true, TOKEN_TYPE_EQUAL,AST_TYPE_ASS,0},
     {OPT_BINARY, false, TOKEN_TYPE_OROR,AST_TYPE_LOR,1},
     {OPT_BINARY, false, TOKEN_TYPE_ANDAND,AST_TYPE_LAND,2},
@@ -190,8 +190,8 @@ struct __perser_op operators[] = {
     {OPT_BINARY, false, TOKEN_TYPE_EQEQ,AST_TYPE_EQ,6},
     {OPT_BINARY, false, TOKEN_TYPE_NE,AST_TYPE_NE,6},
 
-    {OPT_BINARY, false, TOKEN_TYPE_RANGLE,AST_TYPE_LT,7},
-    {OPT_BINARY, false, TOKEN_TYPE_LANGLE,AST_TYPE_GT,7},
+    {OPT_BINARY, false, TOKEN_TYPE_LANGLE,AST_TYPE_LT,7},
+    {OPT_BINARY, false, TOKEN_TYPE_RANGLE,AST_TYPE_GT,7},
     {OPT_BINARY, false, TOKEN_TYPE_LTE,AST_TYPE_LTE,7},
     {OPT_BINARY, false, TOKEN_TYPE_GTE,AST_TYPE_GTE,7},
 
@@ -205,7 +205,6 @@ struct __perser_op operators[] = {
 
     {OPT_UNARY_LEFT, true, TOKEN_TYPE_MINUS,AST_TYPE_UN_MINUS,10},
     {OPT_UNARY_LEFT, true, TOKEN_TYPE_BANG,AST_TYPE_NOT,10},
-    
 };
 
 //TODO: expression parsing
@@ -224,7 +223,7 @@ ast_node_t* parse_expr_until(src_file_t* file, token_t* until){
 
     //unary, binary and ternary expr
     for (uint8_t i = 0; i < sizeof(operators) / sizeof(operators[0]); i++){
-        struct __perser_op op = operators[i];
+        struct __parser_op op = operators[i];
         token_t* old = peek(0);
         left = mid = right = NULL; // zero out all of them
 
