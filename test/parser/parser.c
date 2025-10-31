@@ -552,6 +552,16 @@ ast_node_t* parse_stmt(UNUSED src_file_t* file){
 
         return node; //return early to dodge the semicolon check
 
+    } else if (next->type == TOKEN_TYPE_STRING && peek(1)->type == TOKEN_TYPE_COLON) {
+        if (!next->value){
+            throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE,
+                                             *next, true); //TODO: non-fatal errors
+        }
+        
+        node = malloc(sizeof(ast_node_t));
+        node->type = AST_TYPE_LABEL;
+        node->label.name = (char*)next->value;
+        consume(2); //string and colon
     } else {
         node = malloc(sizeof(ast_node_t));
         node->type = AST_TYPE_EVAL;
@@ -798,6 +808,11 @@ void print_ast_node(ast_node_t* node,size_t indent){
             free(indent_str);
             break;
 
+        case AST_TYPE_LABEL:
+            printf("%sLabel \"%s\"\n",indent_str,node->label.name);
+            free(indent_str);
+            break;
+
         case AST_TYPE_DOTDOTDOT:
             printf("%sElipses\n",indent_str);
             free(indent_str);
@@ -944,6 +959,14 @@ void print_ast_node(ast_node_t* node,size_t indent){
             free(indent_str);
             break;
 
+        case AST_TYPE_TERNARY_COND:
+            printf("%sDivision:\n",indent_str);
+            print_ast_node(node->ternary.cond, indent + INDENT_WIDTH);
+            print_ast_node(node->ternary.val_true, indent + INDENT_WIDTH);
+            print_ast_node(node->ternary.val_false, indent + INDENT_WIDTH);
+            free(indent_str);
+            break;
+
         case AST_TYPE_MOD:
             printf("%sModulo:\n",indent_str);
             print_ast_node(node->binary.left, indent + INDENT_WIDTH);
@@ -963,10 +986,11 @@ void print_ast_node(ast_node_t* node,size_t indent){
             free(indent_str);
             break;
 
-
-        default:
-            printf("%sUnknown '%u'\n",indent_str,node->type);
+        case AST_TYPE_EMPTY_STMT:
+            printf("%sEmpty statement\n",indent_str);
             free(indent_str);
+            break;
+
     }
 }
 
