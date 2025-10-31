@@ -557,11 +557,14 @@ ast_node_t* parse_stmt(UNUSED src_file_t* file){
             throw_code_issue(*file, COMP_ERR_INTERNAL_FAILIURE,
                                              *next, true); //TODO: non-fatal errors
         }
-        
+
         node = malloc(sizeof(ast_node_t));
         node->type = AST_TYPE_LABEL;
         node->label.name = (char*)next->value;
+
         consume(2); //string and colon
+
+        return node; //return early to dodge the semicolon check
     } else {
         node = malloc(sizeof(ast_node_t));
         node->type = AST_TYPE_EVAL;
