@@ -69,7 +69,7 @@ void process_src(src_file_t* src){
 
     parse(&file);
 
-    print_ast_node(file.ast,0);
+    print_ast_node(&file,file.ast,0);
 }
 
 void free_src(src_file_t* src){

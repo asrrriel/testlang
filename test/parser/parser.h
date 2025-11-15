@@ -6,7 +6,7 @@
 
 void parse(src_file_t* file);
 
-void print_ast_node(ast_node_t* node,size_t indent);
+void print_ast_node(src_file_t* file,ast_node_t* node,size_t indent);
 void free_ast_node(ast_node_t* node);
 
 #endif // __PARSER_H__
