@@ -1,3 +1,4 @@
+#include "sym_stuff/symchk.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <lexer/lexer.h>
@@ -25,7 +26,6 @@ src_file_t open_src(char* path){
     if(S_ISDIR(st.st_mode)){
         throw_noncode_issue(toret, COMP_ERR_IS_DIR, true);
     }
-    
     
     FILE* input = fopen(path,"r");
     if(!input){
@@ -69,12 +69,13 @@ void process_src(src_file_t* src){
 
     parse(&file);
 
-    print_ast_node(&file,file.ast,0);
+    populate_symtab(&file);
 }
 
 void free_src(src_file_t* src){
     free_ast_node(src->ast);
     free_token_array(src->tokens);
+    free(src->symbols);
     free(src->content);
 }
 
