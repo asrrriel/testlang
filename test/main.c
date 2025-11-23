@@ -69,6 +69,7 @@ void process_src(src_file_t* src){
 
     parse(&file);
 
+    //print_ast_node(&file, file.ast, 0);
     populate_symtab(&file);
 }
 
