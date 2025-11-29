@@ -7,9 +7,15 @@
 typedef struct {
     //basic information
     char* name;
-    storage_type_t type;
+    enum {
+        ST_VAR,
+        ST_FUNC,
+        ST_LABEL
+    } type;
+    storage_type_t storage_type;
 
-    //refcount
+    //context stuff
+    ast_node_t* scope;
     uint32_t refcount;
 } symbol_t;
 
