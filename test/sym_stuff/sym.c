@@ -4,8 +4,10 @@
 #include "parser/parser.h"
 #include "symchk.h"
 #include "util/srcfile.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 bool append_sym(symbol_t** t,size_t* filled, size_t* size,symbol_t to_append){
     if((*filled)++ >= *size){
@@ -15,6 +17,16 @@ bool append_sym(symbol_t** t,size_t* filled, size_t* size,symbol_t to_append){
     }
     (*t)[*filled - 1] = to_append;
     return true;
+}
+
+symbol_t* get_sym(symbol_t* t,size_t filled,char* name){
+    for (size_t i = 0; i < filled; i++){
+        if(strcmp(t[i].name, name) == 0){
+            return &t[i];
+        }
+    }
+
+    return NULL;
 }
 
 bool is_type_equal(storage_type_t a, storage_type_t b){
@@ -52,6 +64,7 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
 
             if (!is_type_equal(toret, type)) {
                 throw_noncode_issue(*file, COMP_ERR_TYPE_MISMATCH, false);
+                break;
             }
 
             break;
@@ -71,7 +84,14 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
             break;
 
         case AST_TYPE_IDENT:
+            symbol_t* s = get_sym(*syms, *filled, node->ident.name);
+            if (s == NULL){
+                throw_noncode_issue(*file, COMP_ERR_UNDEFINED_IDENT, false);
+                break;
+            }
             printf("used: %s\n",node->ident.name);
+
+            toret = s->storage_type;
             break;
 
         case AST_TYPE_FUNC_DECL:

@@ -26,6 +26,7 @@ static const char* issue_labels[] = {
     [COMP_ERR_EXPECTED_STMT] = "Expected valid statement",
     [COMP_ERR_EXPECTED_IDENT] = "Expected identifier",
     [COMP_ERR_TYPE_MISMATCH] = "Type mismatch",
+    [COMP_ERR_UNDEFINED_IDENT] = "Undefinded identifier",
 };
 
 static const uint8_t issue_severities[] = {
@@ -47,6 +48,7 @@ static const uint8_t issue_severities[] = {
     [COMP_ERR_EXPECTED_STMT] = SEVERITY_ERR,
     [COMP_ERR_EXPECTED_IDENT] = SEVERITY_ERR,
     [COMP_ERR_TYPE_MISMATCH] = SEVERITY_ERR,
+    [COMP_ERR_UNDEFINED_IDENT] = SEVERITY_ERR,
 };
 
 static const char* severity_labels[] = {
