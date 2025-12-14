@@ -3,6 +3,7 @@
 #include "parser/ast.h"
 #include "parser/parser.h"
 #include "symchk.h"
+#include "util/srcfile.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -16,10 +17,24 @@ bool append_sym(symbol_t** t,size_t* filled, size_t* size,symbol_t to_append){
     return true;
 }
 
-void __walk_ast_for_symtab(symbol_t** syms,size_t* filled, size_t* size,ast_node_t* node,ast_node_t* scope){
+bool is_type_equal(storage_type_t a, storage_type_t b){
+    return a.valid 
+        && b.valid 
+        && a.base == b.base 
+        && a.ptr_depth == b.ptr_depth 
+        && a.qualifiers == b.qualifiers;
+}
+
+storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size_t* size,ast_node_t* node,ast_node_t* scope){
     if(!node){
-        return;
+        return (storage_type_t){
+            false,0,0,0
+        };
     }
+
+    storage_type_t toret = (storage_type_t){
+        false,0,0,0
+    };
 
     switch(node->type){
         //nodes we gotta do stuff for
@@ -32,7 +47,13 @@ void __walk_ast_for_symtab(symbol_t** syms,size_t* filled, size_t* size,ast_node
                 .scope = scope,
                 .refcount = 0,
             });
-            __walk_ast_for_symtab(syms,filled,size,node->decl.starting_value,scope);
+            toret = node->decl.type;
+            storage_type_t type = __walk_ast(file,syms,filled,size,node->decl.starting_value,scope);
+
+            if (!is_type_equal(toret, type)) {
+                throw_noncode_issue(*file, COMP_ERR_TYPE_MISMATCH, false);
+            }
+
             break;
 
         case AST_TYPE_LABEL:
@@ -40,10 +61,10 @@ void __walk_ast_for_symtab(symbol_t** syms,size_t* filled, size_t* size,ast_node
             append_sym(syms,filled,size, (symbol_t){
                 .name = node->label.name,
                 .type = ST_LABEL,
+                .storage_type.valid = false,
                 .storage_type.base = 0,
                 .storage_type.ptr_depth = 0,
                 .storage_type.qualifiers = 0,
-                .storage_type.valid = 0,
                 .scope = scope,
                 .refcount = 0,
             });
@@ -63,50 +84,50 @@ void __walk_ast_for_symtab(symbol_t** syms,size_t* filled, size_t* size,ast_node
                 .refcount = 0,
             });
             for(size_t i = 0;i < node->func_decl.args->count;i++){
-                __walk_ast_for_symtab(syms,filled,size,node->func_decl.args->nodes[i],scope);
+                __walk_ast(file,syms,filled,size,node->func_decl.args->nodes[i],scope);
             }
-            __walk_ast_for_symtab(syms,filled,size,node->func_decl.body,scope);
+            __walk_ast(file,syms,filled,size,node->func_decl.body,scope);
             break;
 
         //scope stuff
         case AST_TYPE_BLOCK:
             for(size_t i = 0;i < node->block.stmts->count;i++){
-                __walk_ast_for_symtab(syms,filled,size,node->block.stmts->nodes[i],node);
+                __walk_ast(file,syms,filled,size,node->block.stmts->nodes[i],node);
             }
             break;
 
         //nodes for traversal
         case AST_TYPE_PROGRAM:
             for(size_t i = 0;i < node->program.programisms->count;i++){
-                __walk_ast_for_symtab(syms,filled,size,node->program.programisms->nodes[i],scope);
+                __walk_ast(file,syms,filled,size,node->program.programisms->nodes[i],scope);
             }
             break;
 
         case AST_TYPE_IF:
-            __walk_ast_for_symtab(syms,filled,size,node->if_stmt.cond,scope);
-            __walk_ast_for_symtab(syms,filled,size,node->if_stmt.body,scope);
+            __walk_ast(file,syms,filled,size,node->if_stmt.cond,scope);
+            __walk_ast(file,syms,filled,size,node->if_stmt.body,scope);
             break;
 
         case AST_TYPE_RETURN:
             if (node->return_stmt.val){
-                __walk_ast_for_symtab(syms,filled,size,node->return_stmt.val,scope);
+                __walk_ast(file,syms,filled,size,node->return_stmt.val,scope);
             }
             break;
 
         case AST_TYPE_FUNC_CALL:
             for(size_t i = 0;i < node->func_call.args->count;i++){
-                __walk_ast_for_symtab(syms,filled,size,node->func_call.args->nodes[i],scope);
+                __walk_ast(file,syms,filled,size,node->func_call.args->nodes[i],scope);
             }
-            __walk_ast_for_symtab(syms,filled,size,node->func_call.fp,scope);
+            __walk_ast(file,syms,filled,size,node->func_call.fp,scope);
             break;
 
         case AST_TYPE_EVAL:
-            __walk_ast_for_symtab(syms,filled,size,node->eval.expr,scope);
+            __walk_ast(file,syms,filled,size,node->eval.expr,scope);
             break;
 
         case AST_TYPE_NOT:
         case AST_TYPE_UN_MINUS:
-            __walk_ast_for_symtab(syms,filled,size,node->unary.expr,scope);
+            __walk_ast(file,syms,filled,size,node->unary.expr,scope);
             break;
 
         case AST_TYPE_ADD:  //fallthru
@@ -126,14 +147,14 @@ void __walk_ast_for_symtab(symbol_t** syms,size_t* filled, size_t* size,ast_node
         case AST_TYPE_GTE:  //fallthru
         case AST_TYPE_LTE:  //fallthru
         case AST_TYPE_ASS:  //fallthru
-            __walk_ast_for_symtab(syms,filled,size,node->binary.left,scope);
-            __walk_ast_for_symtab(syms,filled,size,node->binary.right,scope);
+            __walk_ast(file,syms,filled,size,node->binary.left,scope);
+            __walk_ast(file,syms,filled,size,node->binary.right,scope);
             break;
 
         case AST_TYPE_TERNARY_COND:
-            __walk_ast_for_symtab(syms,filled,size,node->ternary.cond,scope);
-            __walk_ast_for_symtab(syms,filled,size,node->ternary.val_false,scope);
-            __walk_ast_for_symtab(syms,filled,size,node->ternary.val_true,scope);
+            __walk_ast(file,syms,filled,size,node->ternary.cond,scope);
+            __walk_ast(file,syms,filled,size,node->ternary.val_false,scope);
+            __walk_ast(file,syms,filled,size,node->ternary.val_true,scope);
             break;
 
         //the rest
@@ -145,6 +166,8 @@ void __walk_ast_for_symtab(symbol_t** syms,size_t* filled, size_t* size,ast_node
         case AST_TYPE_STRLIT:
             break;
     }
+
+    return toret;
 }
 
 void populate_symtab(src_file_t* file){
@@ -157,5 +180,5 @@ void populate_symtab(src_file_t* file){
     file->num_symbols = 0;
     file->symbol_size = 5;
 
-    __walk_ast_for_symtab(&file->symbols,&file->num_symbols,&file->symbol_size,file->ast,file->ast);
+    __walk_ast(file,&file->symbols,&file->num_symbols,&file->symbol_size,file->ast,file->ast);
 }

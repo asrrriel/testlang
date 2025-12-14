@@ -22,6 +22,7 @@ typedef enum {
     COMP_ERR_EXPECTED_EXPR,
     COMP_ERR_EXPECTED_STMT,
     COMP_ERR_EXPECTED_IDENT,
+    COMP_ERR_TYPE_MISMATCH,
 
 } comp_issue_t;
 
