@@ -1,7 +1,6 @@
 #include "sym.h"
 #include "err/err.h"
 #include "parser/ast.h"
-#include "parser/parser.h"
 #include "symchk.h"
 #include "util/srcfile.h"
 #include <stddef.h>
@@ -29,12 +28,14 @@ symbol_t* get_sym(symbol_t* t,size_t filled,char* name){
     return NULL;
 }
 
-bool is_type_equal(storage_type_t a, storage_type_t b){
+bool is_type_equal(storage_type_t a, storage_type_t b, bool ignore_quals){
+    bool coerce_int_types = (a.base == BASE_TYPE_INT || a.base == BASE_TYPE_SHORT || a.base == BASE_TYPE_CHAR) && (b.base == BASE_TYPE_INT || b.base == BASE_TYPE_SHORT || b.base == BASE_TYPE_CHAR);
+
     return a.valid 
         && b.valid 
-        && a.base == b.base 
-        && a.ptr_depth == b.ptr_depth 
-        && a.qualifiers == b.qualifiers;
+        && (a.base == b.base || coerce_int_types)
+        && a.ptr_depth == b.ptr_depth
+        && (a.qualifiers == b.qualifiers || ignore_quals);
 }
 
 storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size_t* size,ast_node_t* node,ast_node_t* scope){
@@ -62,7 +63,7 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
             toret = node->decl.type;
             storage_type_t type = __walk_ast(file,syms,filled,size,node->decl.starting_value,scope);
 
-            if (!is_type_equal(toret, type)) {
+            if (node->decl.starting_value && !is_type_equal(toret, type,true)) {
                 throw_noncode_issue(*file, COMP_ERR_TYPE_MISMATCH, false);
                 break;
             }
@@ -112,7 +113,7 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
         //scope stuff
         case AST_TYPE_BLOCK:
             for(size_t i = 0;i < node->block.stmts->count;i++){
-                __walk_ast(file,syms,filled,size,node->block.stmts->nodes[i],node);
+                toret = __walk_ast(file,syms,filled,size,node->block.stmts->nodes[i],node);
             }
             break;
 
@@ -125,12 +126,16 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
 
         case AST_TYPE_IF:
             __walk_ast(file,syms,filled,size,node->if_stmt.cond,scope);
-            __walk_ast(file,syms,filled,size,node->if_stmt.body,scope);
+            toret = __walk_ast(file,syms,filled,size,node->if_stmt.body,scope);
             break;
 
         case AST_TYPE_RETURN:
             if (node->return_stmt.val){
-                __walk_ast(file,syms,filled,size,node->return_stmt.val,scope);
+                toret = __walk_ast(file,syms,filled,size,node->return_stmt.val,scope);
+            } else {
+                toret = (storage_type_t){
+                    true,0,BASE_TYPE_VOID,0
+                };
             }
             break;
 
@@ -138,16 +143,16 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
             for(size_t i = 0;i < node->func_call.args->count;i++){
                 __walk_ast(file,syms,filled,size,node->func_call.args->nodes[i],scope);
             }
-            __walk_ast(file,syms,filled,size,node->func_call.fp,scope);
+            toret = __walk_ast(file,syms,filled,size,node->func_call.fp,scope);
             break;
 
         case AST_TYPE_EVAL:
-            __walk_ast(file,syms,filled,size,node->eval.expr,scope);
+            toret = __walk_ast(file,syms,filled,size,node->eval.expr,scope);
             break;
 
         case AST_TYPE_NOT:
         case AST_TYPE_UN_MINUS:
-            __walk_ast(file,syms,filled,size,node->unary.expr,scope);
+            toret = __walk_ast(file,syms,filled,size,node->unary.expr,scope);
             break;
 
         case AST_TYPE_ADD:  //fallthru
@@ -167,8 +172,15 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
         case AST_TYPE_GTE:  //fallthru
         case AST_TYPE_LTE:  //fallthru
         case AST_TYPE_ASS:  //fallthru
-            __walk_ast(file,syms,filled,size,node->binary.left,scope);
-            __walk_ast(file,syms,filled,size,node->binary.right,scope);
+            storage_type_t a = __walk_ast(file,syms,filled,size,node->binary.left,scope);
+            storage_type_t b = __walk_ast(file,syms,filled,size,node->binary.right,scope);
+            if(!is_type_equal(a, b,true)) {
+                throw_noncode_issue(*file, COMP_ERR_INCONSISTENT_TYPES_BIN, false);
+                return (storage_type_t){
+                    false,0,0,0
+                };
+            }
+            toret = a;
             break;
 
         case AST_TYPE_TERNARY_COND:
@@ -179,11 +191,23 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
 
         //the rest
         case AST_TYPE_CHRLIT:
+            toret = (storage_type_t){
+                true,0,BASE_TYPE_CHAR,0
+            };
+            break;
         case AST_TYPE_INTLIT:
+            toret = (storage_type_t){
+                true,0,BASE_TYPE_INT,0
+            };
+            break;
+        case AST_TYPE_STRLIT:
+            toret = (storage_type_t){
+                true,0,BASE_TYPE_CHAR,1
+            };
+            break;
         case AST_TYPE_DOTDOTDOT:
         case AST_TYPE_EMPTY_STMT:
         case AST_TYPE_GOTO:
-        case AST_TYPE_STRLIT:
             break;
     }
 
