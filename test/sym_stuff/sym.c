@@ -52,7 +52,7 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
     switch(node->type){
         //nodes we gotta do stuff for
         case AST_TYPE_DECL:
-            printf("declared: %s\n",node->decl.name);
+            //printf("declared: %s\n",node->decl.name);
             append_sym(syms,filled,size, (symbol_t){
                 .name = node->decl.name,
                 .type = ST_VAR,
@@ -71,7 +71,7 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
             break;
 
         case AST_TYPE_LABEL:
-            printf("declared label: %s\n",node->label.name);
+            //printf("declared label: %s\n",node->label.name);
             append_sym(syms,filled,size, (symbol_t){
                 .name = node->label.name,
                 .type = ST_LABEL,
@@ -90,13 +90,13 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
                 throw_noncode_issue(*file, COMP_ERR_UNDEFINED_IDENT, false);
                 break;
             }
-            printf("used: %s\n",node->ident.name);
+            //printf("used: %s\n",node->ident.name);
 
             toret = s->storage_type;
             break;
 
         case AST_TYPE_FUNC_DECL:
-            printf("declared func: %s\n",node->func_decl.name);
+            //printf("declared func: %s\n",node->func_decl.name);
             append_sym(syms,filled,size, (symbol_t){
                 .name = node->func_decl.name,
                 .type = ST_FUNC,

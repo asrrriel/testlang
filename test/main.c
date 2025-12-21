@@ -53,6 +53,11 @@ src_file_t open_src(char* path){
     return toret;
 }
 
+void exit_on_error() {
+    printf("failed to compile: there were more than 0 errors");
+    exit(0);
+}
+
 void process_src(src_file_t* src){
     src->tokens = lex(src->content);
 
@@ -60,17 +65,18 @@ void process_src(src_file_t* src){
         throw_noncode_issue(file, COMP_ERR_INTERNAL_FAILIURE, true);
     }
 
-    //token_t* cur = src->tokens;
-    //do {
-    //    print_token(cur);
-    //    if(cur->type != TOKEN_TYPE_TERMINATOR)
-    //        cur++;
-    //} while(cur->type != TOKEN_TYPE_TERMINATOR); 
-
     parse(&file);
+
+    if (file.num_err != 0){
+        exit_on_error();
+    }
 
     //print_ast_node(&file, file.ast, 0);
     populate_symtab(&file);
+
+    if (file.num_err != 0){
+        exit_on_error();
+    }
 }
 
 void free_src(src_file_t* src){
