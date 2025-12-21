@@ -66,6 +66,8 @@ void throw_noncode_issue(src_file_t file,comp_issue_t issue,bool fatal){
         file.path,
         issue_labels[issue]);
 
+    file.num_err++;
+
     if(fatal){
         exit(1);
     }
@@ -79,6 +81,8 @@ void throw_code_issue(src_file_t file,comp_issue_t issue,token_t highlight,bool 
         highlight.row,
         highlight.col,
         issue_labels[issue]);
+
+    file.num_err++;
 
     if(fatal){
         exit(1);
