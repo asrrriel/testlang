@@ -184,9 +184,16 @@ storage_type_t __walk_ast(src_file_t* file, symbol_t** syms,size_t* filled, size
             break;
 
         case AST_TYPE_TERNARY_COND:
-            __walk_ast(file,syms,filled,size,node->ternary.cond,scope);
-            __walk_ast(file,syms,filled,size,node->ternary.val_false,scope);
-            __walk_ast(file,syms,filled,size,node->ternary.val_true,scope);
+            a = __walk_ast(file,syms,filled,size,node->ternary.cond,scope);
+            b = __walk_ast(file,syms,filled,size,node->ternary.val_false,scope);
+            storage_type_t c = __walk_ast(file,syms,filled,size,node->ternary.val_true,scope);
+            if(!is_type_equal(a, b,true) || !is_type_equal(a, c,true)) {
+                throw_noncode_issue(*file, COMP_ERR_INCONSISTENT_TYPES_BIN, false);
+                return (storage_type_t){
+                    false,0,0,0
+                };
+            }
+            toret = a;
             break;
 
         //the rest
